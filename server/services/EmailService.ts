@@ -63,7 +63,7 @@ class EmailService {
 
       // Send email
       await this.transporter.sendMail({
-        from: process.env.SMTP_FROM || 'noreply@modl.gg',
+        from: process.env.SMTP_FROM || `noreply@${process.env.DOMAIN}`,
         to: email,
         subject: 'modl Admin Login Code',
         text: `Your login code is: ${code}\n\nThis code will expire in 10 minutes.`,
