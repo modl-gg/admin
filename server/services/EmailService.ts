@@ -14,14 +14,19 @@ class EmailService {
   private transporter: nodemailer.Transporter;
 
   constructor() {
+    const smtpPort = Number(process.env.SMTP_PORT) || 25;
+    const emailAuth = {
+      user: process.env.SMTP_USERNAME,
+      pass: process.env.SMTP_PASSWORD
+    };
     this.transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'localhost',
-      port: parseInt(process.env.SMTP_PORT || '25'),
-      secure: false, // Use TLS
-      auth: undefined, // No auth for local postfix
+      host: process.env.SMTP_HOST || "localhost", // Assuming postfix is running on localhost
+      port: smtpPort,
+      secure: false, // true for 465, false for other ports
       tls: {
-        rejectUnauthorized: false
-      }
+        rejectUnauthorized: false // Allow self-signed certificates
+      },
+      auth: (emailAuth.user && emailAuth.pass) ? emailAuth : undefined
     });
   }
 
