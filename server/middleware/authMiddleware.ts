@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import mongoose, { Schema, model, Document, Model } from 'mongoose';
-import { IAdminUser, AdminUserSchema } from 'modl-shared-web';
+import { IAdminUser, AdminUserSchema } from '@modl-gg/shared-web';
 import 'dotenv/config';
 
 const getAdminUserModel = (): Model<IAdminUser> => {

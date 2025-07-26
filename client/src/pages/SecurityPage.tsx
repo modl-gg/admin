@@ -1,6 +1,6 @@
 import { Link } from 'wouter';
-import { Button } from 'modl-shared-web/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from 'modl-shared-web/components/ui/card';
+import { Button } from '@modl-gg/shared-web/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@modl-gg/shared-web/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import {
   ArrowLeft,

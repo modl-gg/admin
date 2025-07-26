@@ -1,7 +1,7 @@
 import nodemailer from 'nodemailer';
 import crypto from 'crypto';
 import mongoose, { Schema, model, Document, Model } from 'mongoose';
-import { IEmailCode as IEmailCodeShared, EmailCodeSchema } from 'modl-shared-web';
+import { IEmailCode as IEmailCodeShared, EmailCodeSchema } from '@modl-gg/shared-web';
 import 'dotenv/config';
 
 type IEmailCode = IEmailCodeShared & Document;

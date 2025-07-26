@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 import { spawn, ChildProcess } from 'child_process';
 import mongoose from 'mongoose';
-import { ISystemLog, SystemLogSchema } from 'modl-shared-web';
+import { ISystemLog, SystemLogSchema } from '@modl-gg/shared-web';
 
 interface PM2LogEntry {
   timestamp: Date;

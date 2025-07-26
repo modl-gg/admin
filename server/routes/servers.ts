@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import mongoose, { Schema, model, Document, Model } from 'mongoose';
-import { IModlServer as IModlServerShared, ApiResponse, ModlServerSchema } from 'modl-shared-web';
+import { IModlServer as IModlServerShared, ApiResponse, ModlServerSchema } from '@modl-gg/shared-web';
 import { requireAuth } from '../middleware/authMiddleware';
 
 type IModlServer = IModlServerShared & Document;

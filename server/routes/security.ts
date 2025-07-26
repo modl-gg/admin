@@ -7,7 +7,7 @@ import {
   ISecurityEvent as ISecurityEventShared,
   SecurityEventSchema,
   SECURITY_EVENT_TYPES
-} from 'modl-shared-web';
+} from '@modl-gg/shared-web';
 import { requireAuth } from '../middleware/authMiddleware';
 
 type IAuditLog = IAuditLogShared & Document;

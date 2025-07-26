@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import mongoose, { Schema, model, Document, Model } from 'mongoose';
-import { IModlServer as IModlServerShared, ISystemLog as ISystemLogShared, ModlServerSchema, SystemLogSchema } from 'modl-shared-web';
+import { IModlServer as IModlServerShared, ISystemLog as ISystemLogShared, ModlServerSchema, SystemLogSchema } from '@modl-gg/shared-web';
 import { requireAuth } from '../middleware/authMiddleware';
 
 type ISystemLog = ISystemLogShared & Document;

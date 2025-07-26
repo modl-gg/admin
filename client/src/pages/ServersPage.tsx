@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle } from 'modl-shared-web/components/ui/card';
-import { Button } from 'modl-shared-web/components/ui/button';
-import { Input } from 'modl-shared-web/components/ui/input';
-import { Badge } from 'modl-shared-web/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@modl-gg/shared-web/components/ui/card';
+import { Button } from '@modl-gg/shared-web/components/ui/button';
+import { Input } from '@modl-gg/shared-web/components/ui/input';
+import { Badge } from '@modl-gg/shared-web/components/ui/badge';
 import { apiClient } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';

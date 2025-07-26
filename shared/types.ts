@@ -1,1 +1,1 @@
-export * from 'modl-shared-web'; 
+export * from '@modl-gg/shared-web'; 

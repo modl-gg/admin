@@ -6,10 +6,10 @@ import {
     DialogTitle,
     DialogFooter,
     DialogClose,
-  } from 'modl-shared-web/components/ui/dialog';
-  import { Button } from 'modl-shared-web/components/ui/button';
-  import { Input } from 'modl-shared-web/components/ui/input';
-  import { Label } from 'modl-shared-web/components/ui/label';
+  } from '@modl-gg/shared-web/components/ui/dialog';
+  import { Button } from '@modl-gg/shared-web/components/ui/button';
+  import { Input } from '@modl-gg/shared-web/components/ui/input';
+  import { Label } from '@modl-gg/shared-web/components/ui/label';
   import { useForm } from 'react-hook-form';
   import { zodResolver } from '@hookform/resolvers/zod';
   import { z } from 'zod';
