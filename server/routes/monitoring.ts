@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import mongoose, { Schema, model, Document, Model, PipelineStage } from 'mongoose';
-import { ISystemLog as ISystemLogShared, IModlServer as IModlServerShared, ApiResponse, ModlServerSchema, SystemLogSchema } from 'modl-shared-web';
+import { ISystemLog as ISystemLogShared, IModlServer as IModlServerShared, ApiResponse, ModlServerSchema, SystemLogSchema } from '@modl-gg/shared-web';
 import { requireAuth } from '../middleware/authMiddleware';
 import PM2LogService from '../services/PM2LogService';
 

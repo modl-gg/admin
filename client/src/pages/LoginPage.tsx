@@ -3,10 +3,10 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuth } from '@/hooks/useAuth';
-import { Button } from 'modl-shared-web/components/ui/button';
-import { Input } from 'modl-shared-web/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from 'modl-shared-web/components/ui/card';
-import { Alert, AlertDescription } from 'modl-shared-web/components/ui/alert';
+import { Button } from '@modl-gg/shared-web/components/ui/button';
+import { Input } from '@modl-gg/shared-web/components/ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@modl-gg/shared-web/components/ui/card';
+import { Alert, AlertDescription } from '@modl-gg/shared-web/components/ui/alert';
 import { Mail, Lock, AlertCircle } from 'lucide-react';
 
 const emailSchema = z.object({

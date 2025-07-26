@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { Link } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Button } from 'modl-shared-web/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from 'modl-shared-web/components/ui/card';
-import { Input } from 'modl-shared-web/components/ui/input';
-import { Badge } from 'modl-shared-web/components/ui/badge';
-import { Switch } from 'modl-shared-web/components/ui/switch';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from 'modl-shared-web/components/ui/tabs';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from 'modl-shared-web/components/ui/alert-dialog';
+import { Button } from '@modl-gg/shared-web/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@modl-gg/shared-web/components/ui/card';
+import { Input } from '@modl-gg/shared-web/components/ui/input';
+import { Badge } from '@modl-gg/shared-web/components/ui/badge';
+import { Switch } from '@modl-gg/shared-web/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@modl-gg/shared-web/components/ui/tabs';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@modl-gg/shared-web/components/ui/alert-dialog';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/api';
 import { 

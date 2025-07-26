@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useParams, useLocation } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Button } from 'modl-shared-web/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from 'modl-shared-web/components/ui/card';
-import { Badge } from 'modl-shared-web/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from 'modl-shared-web/components/ui/tabs';
+import { Button } from '@modl-gg/shared-web/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@modl-gg/shared-web/components/ui/card';
+import { Badge } from '@modl-gg/shared-web/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@modl-gg/shared-web/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/api';
 import { formatDate, formatDateRelative, formatBytes } from '@/lib/utils';
@@ -35,7 +35,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from 'modl-shared-web/components/ui/alert-dialog';
+} from '@modl-gg/shared-web/components/ui/alert-dialog';
 import { EditServerModal } from '@/components/EditServerModal';
 
 interface ServerDetails {

@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import mongoose, { Schema, model, Document, Model } from 'mongoose';
-import { ISystemConfig as ISystemConfigShared, SystemConfigSchema } from 'modl-shared-web';
+import { ISystemConfig as ISystemConfigShared, SystemConfigSchema } from '@modl-gg/shared-web';
 import { requireAuth } from '../middleware/authMiddleware';
 import { logAuditEvent } from './security';
 import PM2LogService from '../services/PM2LogService';
