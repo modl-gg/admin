@@ -1,11 +1,11 @@
 import { Router, Request, Response } from 'express';
-import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import mongoose, { Schema, model, Document, Model } from 'mongoose';
 import { ISystemConfig as ISystemConfigShared, SystemConfigSchema } from '@modl-gg/shared-web';
 import { requireAuth } from '../middleware/authMiddleware';
 import { logAuditEvent } from './security';
 import PM2LogService from '../services/PM2LogService';
+import { configUpdateRateLimit } from '../middleware/rateLimitMiddleware';
 
 type ISystemConfig = ISystemConfigShared & Document;
 
@@ -114,12 +114,6 @@ export async function getMainConfig(): Promise<ISystemConfig> {
   return config!;
 }
 
-// Rate limiting configuration
-const configRateLimit = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 20, // Increased limit for config changes
-  message: { error: 'Too many configuration changes' }
-});
 
 // Configuration validation schema
 const configSchema = z.object({
@@ -190,7 +184,7 @@ router.get('/config', async (req, res) => {
 });
 
 // Update system configuration
-router.put('/config', configRateLimit, async (req, res) => {
+router.put('/config', configUpdateRateLimit, async (req, res) => {
   try {
     const validatedConfig = configSchema.parse(req.body);
     
@@ -331,7 +325,7 @@ router.get('/rate-limits', async (req, res) => {
 });
 
 // Update rate limits
-router.put('/rate-limits', configRateLimit, async (req, res) => {
+router.put('/rate-limits', configUpdateRateLimit, async (req, res) => {
   try {
     const { rateLimitRequests, rateLimitWindow } = req.body;
     

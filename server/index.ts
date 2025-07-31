@@ -20,6 +20,8 @@ import securityRoutes from './routes/security';
 import { updateActivity } from './middleware/authMiddleware';
 import EmailService from './services/EmailService';
 import PM2LogService from './services/PM2LogService';
+import { discordWebhookService } from './services/DiscordWebhookService';
+import { serverProvisioningMonitor } from './services/ServerProvisioningMonitor';
 
 // Load environment variables
 dotenv.config();
@@ -136,6 +138,12 @@ app.use('/api/system', systemRoutes);
 app.use('/api/audit', securityRoutes);
 app.use('/api/security', securityRoutes);
 
+// Test routes (only in development)
+if (NODE_ENV === 'development') {
+  const testNotificationRoutes = require('./routes/test-notifications').default;
+  app.use('/api/test-notifications', testNotificationRoutes);
+}
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({
@@ -160,6 +168,13 @@ if (require('fs').existsSync(clientDistPath)) {
 // Global error handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('Global error handler:', err);
+  
+  // Send Discord notification for errors
+  if (discordWebhookService.isConfigured()) {
+    discordWebhookService.sendPanelError(err, req).catch(error => {
+      console.error('Failed to send Discord notification:', error);
+    });
+  }
   
   res.status(err.status || 500).json({
     success: false,
@@ -213,6 +228,10 @@ async function startServer() {
       
       // Initialize PM2 log streaming based on configuration
       initializePM2Logging();
+      
+      // Start server provisioning monitor
+      serverProvisioningMonitor.start();
+      console.log(`🔍 Server provisioning monitor started`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);
@@ -224,6 +243,7 @@ async function startServer() {
 process.on('SIGTERM', async () => {
   console.log('🛑 SIGTERM received, shutting down gracefully');
   PM2LogService.stopStreaming();
+  serverProvisioningMonitor.stop();
   io.close();
   await mongoose.connection.close();
   process.exit(0);
@@ -232,6 +252,7 @@ process.on('SIGTERM', async () => {
 process.on('SIGINT', async () => {
   console.log('🛑 SIGINT received, shutting down gracefully');
   PM2LogService.stopStreaming();
+  serverProvisioningMonitor.stop();
   io.close();
   await mongoose.connection.close();
   process.exit(0);

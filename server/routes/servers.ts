@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import mongoose, { Schema, model, Document, Model } from 'mongoose';
 import { IModlServer as IModlServerShared, ApiResponse, ModlServerSchema } from '@modl-gg/shared-web';
 import { requireAuth } from '../middleware/authMiddleware';
+import { discordWebhookService } from '../services/DiscordWebhookService';
 
 type IModlServer = IModlServerShared & Document;
 
@@ -353,6 +354,26 @@ router.post('/bulk', async (req: Request, res: Response) => {
           }
         );
         affectedCount = result.modifiedCount;
+        
+        // Send Discord notifications for suspended servers
+        if (discordWebhookService.isConfigured() && affectedCount > 0) {
+          const suspendedServers = await ModlServerModel.find({
+            _id: { $in: serverIds }
+          }).select('_id name email plan');
+          
+          for (const server of suspendedServers) {
+            discordWebhookService.sendServerProvisioningFailure(
+              server._id.toString(),
+              server.name || 'Unnamed Server',
+              'Server suspended by admin bulk action',
+              {
+                'Email': server.email || 'N/A',
+                'Plan': server.plan || 'N/A',
+                'Action': 'Bulk Suspend'
+              }
+            ).catch(err => console.error('Discord notification error:', err));
+          }
+        }
         break;
         
       case 'activate':

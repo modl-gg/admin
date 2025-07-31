@@ -1,8 +1,8 @@
 import { Router, Request, Response } from 'express';
-import rateLimit from 'express-rate-limit';
 import mongoose, { Schema, model, Document, Model } from 'mongoose';
 import EmailService from '../services/EmailService';
 import { requireAuth } from '../middleware/authMiddleware';
+import { loginRateLimit, codeRequestRateLimit } from '../middleware/rateLimitMiddleware';
 
 // Define IAdminUser directly in this file
 interface IAdminUser extends Document {
@@ -28,30 +28,6 @@ const getAdminUserModel = (): Model<IAdminUser> => {
 };
 
 const router = Router();
-
-// Rate limiting for login attempts
-const loginRateLimit = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // 5 attempts per window
-  message: {
-    success: false,
-    error: 'Too many login attempts, please try again later'
-  },
-  standardHeaders: true,
-  legacyHeaders: false
-});
-
-// Rate limiting for code requests
-const codeRequestRateLimit = rateLimit({
-  windowMs: 5 * 60 * 1000, // 5 minutes
-  max: 3, // 3 code requests per window
-  message: {
-    success: false,
-    error: 'Too many code requests, please try again later'
-  },
-  standardHeaders: true,
-  legacyHeaders: false
-});
 
 /**
  * POST /api/auth/request-code
