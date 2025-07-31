@@ -1,5 +1,5 @@
 import mongoose, { Model } from 'mongoose';
-import { IModlServer, ModlServerSchema } from 'modl-shared-web';
+import { IModlServer, ModlServerSchema } from '@modl-gg/shared-web';
 import { discordWebhookService } from './DiscordWebhookService';
 
 interface FailedServerTracker {
@@ -103,13 +103,14 @@ class ServerProvisioningMonitor {
     const hoursSinceCreation = Math.round(timeSinceCreation / (1000 * 60 * 60));
 
     try {
+      const serverData = server as any; // Type assertion to access properties
       await discordWebhookService.sendServerProvisioningFailure(
         server._id.toString(),
-        server.name || 'Unnamed Server',
+        serverData.name || 'Unnamed Server',
         'Server provisioning has been in failed state for over 10 minutes',
         {
-          'Email': server.email || 'N/A',
-          'Plan': server.plan || 'N/A',
+          'Email': serverData.email || 'N/A',
+          'Plan': serverData.plan || 'N/A',
           'Created': `${hoursSinceCreation} hours ago`,
           'Last Updated': new Date(server.updatedAt).toISOString()
         }
