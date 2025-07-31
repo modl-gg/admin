@@ -362,13 +362,14 @@ router.post('/bulk', async (req: Request, res: Response) => {
           }).select('_id name email plan');
           
           for (const server of suspendedServers) {
+            const serverData = server as any; // Type assertion to access properties
             discordWebhookService.sendServerProvisioningFailure(
               server._id.toString(),
-              server.name || 'Unnamed Server',
+              serverData.name || 'Unnamed Server',
               'Server suspended by admin bulk action',
               {
-                'Email': server.email || 'N/A',
-                'Plan': server.plan || 'N/A',
+                'Email': serverData.email || 'N/A',
+                'Plan': serverData.plan || 'N/A',
                 'Action': 'Bulk Suspend'
               }
             ).catch(err => console.error('Discord notification error:', err));
