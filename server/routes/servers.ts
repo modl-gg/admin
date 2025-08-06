@@ -3,6 +3,7 @@ import mongoose, { Schema, model, Document, Model } from 'mongoose';
 import { IModlServer as IModlServerShared, ApiResponse, ModlServerSchema } from '@modl-gg/shared-web';
 import { requireAuth } from '../middleware/authMiddleware';
 import { discordWebhookService } from '../services/DiscordWebhookService';
+import { connectToGlobalModlDb } from '../db/connectionManager';
 
 type IModlServer = IModlServerShared & Document;
 
@@ -165,8 +166,9 @@ router.get('/:id/stats', async (req: Request, res: Response) => {
       });
     }
 
-    // Connect to the specific server's database
-    const serverDb = mongoose.connection.useDb(server.databaseName, { useCache: true });
+    // Connect to the specific server's database using connection manager for proper timeout settings
+    const globalConnection = await connectToGlobalModlDb();
+    const serverDb = globalConnection.useDb(server.databaseName, { useCache: true });
     
     // Fetch stats from the server's database
     const [
@@ -460,18 +462,21 @@ router.post('/:id/reset-database', async (req: Request, res: Response) => {
     // Only drop the database if it exists and is configured
     if (server.databaseName) {
       try {
-        // Check if main connection is ready before attempting database operations
-        if (mongoose.connection.readyState !== 1) {
-          console.warn(`MongoDB connection not ready (state: ${mongoose.connection.readyState}). Skipping database drop for ${server.databaseName}`);
+        // Use connection manager to get a connection with proper timeout settings
+        const globalConnection = await connectToGlobalModlDb();
+
+        if (globalConnection.readyState !== 1) {
+          console.warn(`Global MongoDB connection not ready (state: ${globalConnection.readyState}). Skipping database drop for ${server.databaseName}`);
         } else {
-          const serverDb = mongoose.connection.useDb(server.databaseName, { useCache: true });
-          
-          // Add timeout to prevent hanging
+          // Use the global connection to access the specific server database
+          const serverDb = globalConnection.useDb(server.databaseName, { useCache: false });
+
+          // Add timeout to prevent hanging - increased to 30 seconds to match connection timeout settings
           const dropPromise = serverDb.dropDatabase();
-          const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Database drop operation timed out after 5 seconds')), 5000)
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Database drop operation timed out after 30 seconds')), 30000)
           );
-          
+
           await Promise.race([dropPromise, timeoutPromise]);
           console.log(`Database ${server.databaseName} dropped for server ${server.serverName}`);
         }
