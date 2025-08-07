@@ -2,6 +2,7 @@ import { EventEmitter } from 'events';
 import { spawn, ChildProcess } from 'child_process';
 import mongoose from 'mongoose';
 import { ISystemLog, SystemLogSchema } from '@modl-gg/shared-web';
+import { discordWebhookService, NotificationType } from './DiscordWebhookService';
 
 interface PM2LogEntry {
   timestamp: Date;
@@ -141,13 +142,16 @@ class PM2LogService extends EventEmitter {
 
     try {
       const logEntry = this.parseLogLine(line, defaultLevel);
-      
+
       // Save to database
       this.saveLogToDatabase(logEntry);
-      
+
       // Emit for real-time updates
       this.emit('newLog', logEntry);
-      
+
+      // Send Discord webhook notification for error and critical logs
+      this.sendDiscordNotificationIfNeeded(logEntry);
+
     } catch (error) {
       console.error('Error processing PM2 log line:', error);
     }
@@ -223,7 +227,7 @@ class PM2LogService extends EventEmitter {
   private async saveLogToDatabase(logEntry: PM2LogEntry): Promise<void> {
     try {
       const SystemLogModel = mongoose.models.SystemLog || mongoose.model('SystemLog', SystemLogSchema);
-      
+
       const systemLog = new SystemLogModel({
         level: logEntry.level,
         message: logEntry.message,
@@ -237,6 +241,82 @@ class PM2LogService extends EventEmitter {
       await systemLog.save();
     } catch (error) {
       console.error('Failed to save PM2 log to database:', error);
+    }
+  }
+
+  /**
+   * Send Discord webhook notification for error and critical logs
+   */
+  private sendDiscordNotificationIfNeeded(logEntry: PM2LogEntry): void {
+    // Only send notifications for error and critical level logs
+    if (logEntry.level !== 'error' && logEntry.level !== 'critical') {
+      return;
+    }
+
+    // Check if Discord webhook is configured
+    if (!discordWebhookService.isConfigured()) {
+      return;
+    }
+
+    // Send notification asynchronously to avoid blocking log processing
+    this.sendDiscordNotification(logEntry).catch(error => {
+      console.error('Failed to send Discord notification for PM2 log:', error);
+    });
+  }
+
+  /**
+   * Send Discord webhook notification for a log entry
+   */
+  private async sendDiscordNotification(logEntry: PM2LogEntry): Promise<void> {
+    try {
+      const title = logEntry.level === 'critical' ? '🚨 Critical PM2 Error' : '❌ PM2 Error Detected';
+      const description = `A ${logEntry.level} level error occurred in the modl-panel PM2 instance`;
+
+      const fields = [
+        {
+          name: 'Error Message',
+          value: logEntry.message.length > 1000 ?
+            `${logEntry.message.substring(0, 1000)}...` :
+            logEntry.message,
+          inline: false
+        },
+        {
+          name: 'Source',
+          value: logEntry.source,
+          inline: true
+        },
+        {
+          name: 'Category',
+          value: logEntry.category || 'pm2',
+          inline: true
+        },
+        {
+          name: 'Timestamp',
+          value: logEntry.timestamp.toISOString(),
+          inline: true
+        }
+      ];
+
+      // Add metadata if available
+      if (logEntry.metadata && Object.keys(logEntry.metadata).length > 0) {
+        const metadataString = JSON.stringify(logEntry.metadata, null, 2);
+        fields.push({
+          name: 'Metadata',
+          value: metadataString.length > 500 ?
+            `\`\`\`json\n${metadataString.substring(0, 500)}...\n\`\`\`` :
+            `\`\`\`json\n${metadataString}\n\`\`\``,
+          inline: false
+        });
+      }
+
+      await discordWebhookService.sendNotification(
+        NotificationType.ERROR,
+        title,
+        description,
+        fields
+      );
+    } catch (error) {
+      console.error('Error sending Discord notification for PM2 log:', error);
     }
   }
 
@@ -278,17 +358,37 @@ class PM2LogService extends EventEmitter {
   async getRecentLogs(limit = 100): Promise<any[]> {
     try {
       const SystemLogModel = mongoose.models.SystemLog || mongoose.model('SystemLog', SystemLogSchema);
-      
+
       const logs = await SystemLogModel
         .find({ source: 'modl-panel' })
         .sort({ timestamp: -1 })
         .limit(limit)
         .lean();
-      
+
       return logs;
     } catch (error) {
       console.error('Failed to fetch recent PM2 logs:', error);
       return [];
+    }
+  }
+
+  /**
+   * Test method to simulate processing a log entry (for testing Discord webhook integration)
+   */
+  testLogEntry(logEntry: PM2LogEntry): void {
+    try {
+      // Save to database
+      this.saveLogToDatabase(logEntry);
+
+      // Emit for real-time updates
+      this.emit('newLog', logEntry);
+
+      // Send Discord webhook notification for error and critical logs
+      this.sendDiscordNotificationIfNeeded(logEntry);
+
+      console.log(`Test log entry processed: ${logEntry.level} - ${logEntry.message}`);
+    } catch (error) {
+      console.error('Error processing test log entry:', error);
     }
   }
 }
