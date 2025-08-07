@@ -33,14 +33,10 @@ jobs:
           cd /home/modl/modl-admin
           git stash
           git pull origin main
-          if git diff --name-only HEAD@{1} HEAD | grep -q "^package.*\.json$"; then
-            npm ci
-          fi
-          if git diff --name-only HEAD@{1} HEAD | grep -q "^client/package.*\.json$"; then
-            cd client
-            npm ci
-            cd ..
-          fi
+          npm i
+          cd client
+          npm i
+          cd ..
           npm run build
           pm2 reload modl-admin --wait-ready
           if pm2 describe modl-admin | grep -q "online"; then
