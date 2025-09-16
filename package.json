@@ -23,7 +23,7 @@
   "author": "modl-gg",
   "license": "AGPL-3.0-only",
   "dependencies": {
-    "@modl-gg/shared-web": "1.0.1",
+    "@modl-gg/shared-web": "1.0.2",
     "@tanstack/react-query-devtools": "^5.81.2",
     "@vitejs/plugin-react": "^4.6.0",
     "compression": "^1.7.4",

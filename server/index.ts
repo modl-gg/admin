@@ -21,6 +21,7 @@ import { updateActivity } from './middleware/authMiddleware';
 import EmailService from './services/EmailService';
 import PM2LogService from './services/PM2LogService';
 import { discordWebhookService } from './services/DiscordWebhookService';
+import { webhookConfigService } from './services/WebhookConfigService';
 import { serverProvisioningMonitor } from './services/ServerProvisioningMonitor';
 
 // Load environment variables

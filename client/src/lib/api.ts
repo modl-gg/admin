@@ -93,11 +93,13 @@ class ApiClient {
     search?: string;
     plan?: string;
     status?: string;
+    sort?: string;
+    order?: 'asc' | 'desc';
   }) {
     const queryParams = new URLSearchParams();
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined) {
+        if (value !== undefined && value !== null) {
           queryParams.append(key, value.toString());
         }
       });
@@ -113,6 +115,17 @@ class ApiClient {
 
   async getServerStats(id: string) {
     return this.request(`/servers/${id}/stats`);
+  }
+
+  async updateServerStats(id: string, stats: {
+    userCount?: number;
+    ticketCount?: number;
+    lastActivityAt?: string;
+  }) {
+    return this.request(`/servers/${id}/stats`, {
+      method: 'PUT',
+      body: JSON.stringify(stats),
+    });
   }
 
   async updateServer(id: string, data: any) {

@@ -19,6 +19,7 @@ router.use(requireAuth);
 /**
  * GET /api/servers
  * Get all servers with pagination and filtering
+ * Supports: pagination, search, filtering by plan/status, sorting
  */
 router.get('/', async (req: Request, res: Response) => {
   try {
@@ -32,22 +33,45 @@ router.get('/', async (req: Request, res: Response) => {
       order = 'desc'
     } = req.query;
 
-    const pageNum = parseInt(page as string);
-    const limitNum = parseInt(limit as string);
+    // Validate and sanitize pagination parameters
+    const pageNum = Math.max(1, parseInt(page as string) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit as string) || 20));
     const skip = (pageNum - 1) * limitNum;
+
+    // Validate sort field - only allow specific fields for security
+    const allowedSortFields = [
+      'serverName', 
+      'customDomain', 
+      'adminEmail', 
+      'plan', 
+      'createdAt', 
+      'updatedAt',
+      'userCount',
+      'ticketCount',
+      'provisioningStatus',
+      'lastActivityAt'
+    ];
+    const sortField = allowedSortFields.includes(sort as string) ? sort as string : 'createdAt';
+    const sortOrder = order === 'asc' ? 1 : -1;
 
     // Build filter object
     const filter: any = {};
     
-    if (search) {
-      filter.$text = { $search: search as string };
+    if (search && (search as string).trim()) {
+      const searchTerm = (search as string).trim();
+      // Use regex for more flexible search across multiple fields
+      filter.$or = [
+        { serverName: { $regex: searchTerm, $options: 'i' } },
+        { customDomain: { $regex: searchTerm, $options: 'i' } },
+        { adminEmail: { $regex: searchTerm, $options: 'i' } }
+      ];
     }
     
     if (plan && plan !== 'all') {
       filter.plan = plan;
     }
     
-    if (status) {
+    if (status && status !== 'all') {
       switch (status) {
         case 'active':
           filter.provisioningStatus = 'completed';
@@ -67,42 +91,52 @@ router.get('/', async (req: Request, res: Response) => {
 
     // Build sort object
     const sortObj: any = {};
-    sortObj[sort as string] = order === 'desc' ? -1 : 1;
+    sortObj[sortField] = sortOrder;
 
-    // Execute queries
+    // Execute queries with better error handling
     const ModlServerModel = getModlServerModel();
-    const [servers, total] = await Promise.all([
-      ModlServerModel
-        .find(filter)
-        .sort(sortObj)
-        .skip(skip)
-        .limit(limitNum)
-        .lean(),
-      ModlServerModel.countDocuments(filter)
-    ]);
+    
+    try {
+      const [servers, total] = await Promise.all([
+        ModlServerModel
+          .find(filter)
+          .sort(sortObj)
+          .skip(skip)
+          .limit(limitNum)
+          .select('-__v -emailVerificationToken -provisioningSignInToken') // Exclude sensitive fields
+          .lean(),
+        ModlServerModel.countDocuments(filter)
+      ]);
 
-    const response: ApiResponse<{
-      servers: IModlServer[];
-      pagination: {
-        page: number;
-        limit: number;
-        total: number;
-        pages: number;
-      };
-    }> = {
-      success: true,
-      data: {
-        servers: servers as IModlServer[],
+      const response: ApiResponse<{
+        servers: IModlServer[];
         pagination: {
-          page: pageNum,
-          limit: limitNum,
-          total,
-          pages: Math.ceil(total / limitNum)
+          page: number;
+          limit: number;
+          total: number;
+          pages: number;
+        };
+      }> = {
+        success: true,
+        data: {
+          servers: servers as IModlServer[],
+          pagination: {
+            page: pageNum,
+            limit: limitNum,
+            total,
+            pages: Math.ceil(total / limitNum)
+          }
         }
-      }
-    };
+      };
 
-    return res.json(response);
+      return res.json(response);
+    } catch (queryError) {
+      console.error('Database query error:', queryError);
+      return res.status(500).json({
+        success: false,
+        error: 'Database query failed'
+      });
+    }
   } catch (error) {
     console.error('Get servers error:', error);
     return res.status(500).json({
@@ -243,6 +277,64 @@ router.put('/:id', async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       error: 'Failed to update server'
+    });
+  }
+});
+
+/**
+ * PUT /api/servers/:id/stats
+ * Update server statistics (userCount, ticketCount, lastActivityAt)
+ */
+router.put('/:id/stats', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { userCount, ticketCount, lastActivityAt } = req.body;
+
+    // Validate input
+    const updateData: any = {};
+    if (typeof userCount === 'number' && userCount >= 0) {
+      updateData.userCount = userCount;
+    }
+    if (typeof ticketCount === 'number' && ticketCount >= 0) {
+      updateData.ticketCount = ticketCount;
+    }
+    if (lastActivityAt) {
+      updateData.lastActivityAt = new Date(lastActivityAt);
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No valid stats provided to update'
+      });
+    }
+
+    updateData.updatedAt = new Date();
+
+    const ModlServerModel = getModlServerModel();
+    const server = await ModlServerModel.findByIdAndUpdate(
+      id,
+      updateData,
+      { new: true, runValidators: true }
+    );
+
+    if (!server) {
+      return res.status(404).json({
+        success: false,
+        error: 'Server not found'
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: server,
+      message: 'Server statistics updated successfully'
+    });
+  } catch (error) {
+    console.error('Update server stats error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to update server statistics'
     });
   }
 });

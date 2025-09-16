@@ -39,6 +39,28 @@ class DiscordWebhookService {
     this.adminRoleId = process.env.DISCORD_ADMIN_ROLE_ID;
   }
 
+  // Update webhook configuration from panel settings
+  updateConfig(webhookSettings: {
+    discordWebhookUrl?: string;
+    discordAdminRoleId?: string;
+    botName?: string;
+    avatarUrl?: string;
+    enabled?: boolean;
+  }) {
+    if (webhookSettings.enabled && webhookSettings.discordWebhookUrl) {
+      this.webhookUrl = webhookSettings.discordWebhookUrl;
+      this.adminRoleId = webhookSettings.discordAdminRoleId;
+      this.botName = webhookSettings.botName || 'MODL Admin';
+      this.avatarUrl = webhookSettings.avatarUrl || '';
+    } else {
+      // Fallback to environment variables if not configured in panel
+      this.webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+      this.adminRoleId = process.env.DISCORD_ADMIN_ROLE_ID;
+      this.botName = 'MODL Admin';
+      this.avatarUrl = '';
+    }
+  }
+
   private getEmbedColor(type: NotificationType): number {
     switch (type) {
       case NotificationType.ERROR:
@@ -65,7 +87,7 @@ class DiscordWebhookService {
     additionalContent?: string
   ): Promise<void> {
     if (!this.webhookUrl) {
-      console.warn('Discord webhook URL not configured');
+      // Silently return if webhook not configured - no need to log warnings
       return;
     }
 
@@ -110,10 +132,12 @@ class DiscordWebhookService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Failed to send Discord webhook:', response.status, errorText);
+        // Silently fail - webhook errors shouldn't break the main application flow
+        return;
       }
     } catch (error) {
-      console.error('Error sending Discord webhook:', error);
+      // Silently fail - webhook errors shouldn't break the main application flow
+      return;
     }
   }
 

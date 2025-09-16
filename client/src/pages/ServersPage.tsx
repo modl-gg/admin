@@ -1,10 +1,34 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@modl-gg/shared-web/components/ui/card';
 import { Button } from '@modl-gg/shared-web/components/ui/button';
 import { Input } from '@modl-gg/shared-web/components/ui/input';
 import { Badge } from '@modl-gg/shared-web/components/ui/badge';
+import { 
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@modl-gg/shared-web/components/ui/table';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  PaginationEllipsis,
+} from '@modl-gg/shared-web/components/ui/pagination';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@modl-gg/shared-web/components/ui/select';
 import { apiClient } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
@@ -17,7 +41,10 @@ import {
   LogOut,
   Eye,
   Edit,
-  Trash2
+  Trash2,
+  ArrowUpDown,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 
 interface ModlServer {
@@ -30,32 +57,81 @@ interface ModlServer {
   provisioningStatus: 'pending' | 'in-progress' | 'completed' | 'failed';
   createdAt: string;
   updatedAt: string;
+  userCount?: number;
+  ticketCount?: number;
+  region?: string;
+  lastActivityAt?: string;
 }
+
+type SortField = 'serverName' | 'customDomain' | 'adminEmail' | 'plan' | 'createdAt' | 'userCount' | 'lastActivityAt';
+type SortDirection = 'asc' | 'desc';
 
 export default function ServersPage() {
   const { session, logout } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPlan, setSelectedPlan] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [sortField, setSortField] = useState<SortField>('createdAt');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedPlan, selectedStatus, pageSize]);
 
   const { 
     data: serversData, 
     isLoading, 
     error 
   } = useQuery({
-    queryKey: ['servers', { search: searchTerm, plan: selectedPlan, status: selectedStatus }],
+    queryKey: ['servers', { 
+      search: searchTerm, 
+      plan: selectedPlan, 
+      status: selectedStatus,
+      page: currentPage,
+      limit: pageSize,
+      sort: sortField,
+      order: sortDirection
+    }],
     queryFn: async () => {
       const response = await apiClient.getServers({
         search: searchTerm || undefined,
         plan: selectedPlan !== 'all' ? selectedPlan : undefined,
         status: selectedStatus !== 'all' ? selectedStatus : undefined,
+        page: currentPage,
+        limit: pageSize,
+        sort: sortField,
+        order: sortDirection,
       });
       return response.data;
     },
   });
 
   const servers = serversData?.servers || [];
-  const pagination = serversData?.pagination;
+  const pagination = serversData?.pagination || { total: 0, pages: 0, page: 1, limit: pageSize };
+
+  // Use server-side sorted data directly since we're now passing sort parameters to the API
+  const sortedServers = servers;
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const renderSortIcon = (field: SortField) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="w-4 h-4 text-muted-foreground" />;
+    }
+    return sortDirection === 'asc' ? 
+      <ChevronUp className="w-4 h-4 text-primary" /> : 
+      <ChevronDown className="w-4 h-4 text-primary" />;
+  };
 
   const getStatusBadge = (server: ModlServer) => {
     if (!server.emailVerified) {
@@ -162,39 +238,54 @@ export default function ServersPage() {
           {/* Filters and Search */}
           <Card>
             <CardContent className="pt-6">
-              <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex flex-col lg:flex-row gap-4">
                 <div className="flex-1">
                   <div className="relative">
                     <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
                       placeholder="Search servers, domains, or emails..."
                       value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
                       className="pl-10"
                     />
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <select
-                    value={selectedPlan}
-                    onChange={(e) => setSelectedPlan(e.target.value)}
-                    className="px-3 py-2 border border-input rounded-md text-sm"
-                  >
-                    <option value="all">All Plans</option>
-                    <option value="free">Free</option>
-                    <option value="premium">Premium</option>
-                  </select>
-                  <select
-                    value={selectedStatus}
-                    onChange={(e) => setSelectedStatus(e.target.value)}
-                    className="px-3 py-2 border border-input rounded-md text-sm"
-                  >
-                    <option value="all">All Status</option>
-                    <option value="active">Active</option>
-                    <option value="pending">Pending</option>
-                    <option value="failed">Failed</option>
-                    <option value="unverified">Unverified</option>
-                  </select>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Select value={selectedPlan} onValueChange={setSelectedPlan}>
+                    <SelectTrigger className="w-full sm:w-[150px]">
+                      <SelectValue placeholder="All Plans" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Plans</SelectItem>
+                      <SelectItem value="free">Free</SelectItem>
+                      <SelectItem value="premium">Premium</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                    <SelectTrigger className="w-full sm:w-[150px]">
+                      <SelectValue placeholder="All Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="failed">Failed</SelectItem>
+                      <SelectItem value="unverified">Unverified</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={pageSize.toString()} onValueChange={(value: string) => setPageSize(Number(value))}>
+                    <SelectTrigger className="w-full sm:w-[100px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </CardContent>
@@ -209,88 +300,264 @@ export default function ServersPage() {
             </CardHeader>
             <CardContent>
               {isLoading ? (
-                <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                  <p className="text-muted-foreground mt-2">Loading servers...</p>
+                <div className="space-y-4">
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Server Name</TableHead>
+                          <TableHead className="hidden sm:table-cell">Domain</TableHead>
+                          <TableHead className="hidden md:table-cell">Admin Email</TableHead>
+                          <TableHead>Plan</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="hidden lg:table-cell">Users</TableHead>
+                          <TableHead className="hidden xl:table-cell">Created</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {[...Array(pageSize)].map((_, i) => (
+                          <TableRow key={i}>
+                            <TableCell>
+                              <div className="space-y-1">
+                                <div className="h-4 bg-muted animate-pulse rounded"></div>
+                                <div className="h-3 bg-muted animate-pulse rounded w-2/3 sm:hidden"></div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="hidden sm:table-cell">
+                              <div className="h-4 bg-muted animate-pulse rounded w-3/4"></div>
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell">
+                              <div className="h-4 bg-muted animate-pulse rounded w-full"></div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="h-6 bg-muted animate-pulse rounded w-16"></div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="h-6 bg-muted animate-pulse rounded w-20"></div>
+                            </TableCell>
+                            <TableCell className="hidden lg:table-cell">
+                              <div className="h-4 bg-muted animate-pulse rounded w-8"></div>
+                            </TableCell>
+                            <TableCell className="hidden xl:table-cell">
+                              <div className="h-4 bg-muted animate-pulse rounded w-24"></div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end space-x-1">
+                                <div className="h-8 w-8 bg-muted animate-pulse rounded"></div>
+                                <div className="h-8 w-8 bg-muted animate-pulse rounded"></div>
+                                <div className="h-8 w-8 bg-muted animate-pulse rounded"></div>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
               ) : error ? (
                 <div className="text-center py-8">
                   <p className="text-destructive">Failed to load servers</p>
                   <p className="text-sm text-muted-foreground">{(error as any)?.message}</p>
                 </div>
-              ) : servers.length === 0 ? (
-                <div className="text-center py-8">
+              ) : sortedServers.length === 0 ? (
+                <div className="text-center py-12">
                   <Server className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">No servers found</p>
-                  <p className="text-sm text-muted-foreground">
+                  <h3 className="text-lg font-semibold text-muted-foreground mb-2">No servers found</h3>
+                  <p className="text-sm text-muted-foreground max-w-md mx-auto">
                     {searchTerm || selectedPlan !== 'all' || selectedStatus !== 'all' 
-                      ? 'Try adjusting your filters' 
-                      : 'Servers will appear here once they are registered'
+                      ? 'Try adjusting your search terms or filters to find what you\'re looking for.' 
+                      : 'Servers will appear here once they are registered and provisioned.'
                     }
                   </p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Server Name</th>
-                        <th>Domain</th>
-                        <th>Admin Email</th>
-                        <th>Plan</th>
-                        <th>Status</th>
-                        <th>Created</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {servers.map((server: ModlServer) => (
-                        <tr key={server._id}>
-                          <td>
-                            <div className="font-medium">
-                              <Link href={`/servers/${server._id}`} className="hover:text-blue-600">
-                                {server.serverName}
-                              </Link>
-                            </div>
-                          </td>
-                          <td>
-                            <div className="text-sm">
-                              {server.customDomain}.modl.gg
-                            </div>
-                          </td>
-                          <td>
-                            <div className="text-sm">{server.adminEmail}</div>
-                          </td>
-                          <td>
-                            {getPlanBadge(server.plan)}
-                          </td>
-                          <td>
-                            {getStatusBadge(server)}
-                          </td>
-                          <td>
-                            <div className="text-sm text-muted-foreground">
-                              {formatDate(server.createdAt)}
-                            </div>
-                          </td>
-                          <td>
+                <div className="space-y-4">
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead 
+                            className="cursor-pointer hover:bg-muted/50 select-none transition-colors"
+                            onClick={() => handleSort('serverName')}
+                          >
                             <div className="flex items-center space-x-2">
-                              <Link href={`/servers/${server._id}`}>
-                                <Button variant="ghost" size="sm">
-                                  <Eye className="w-4 h-4" />
-                                </Button>
-                              </Link>
-                              <Button variant="ghost" size="sm" disabled>
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                              <Button variant="ghost" size="sm" disabled>
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
+                              <span>Server Name</span>
+                              {renderSortIcon('serverName')}
                             </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                          </TableHead>
+                          <TableHead 
+                            className="cursor-pointer hover:bg-muted/50 select-none transition-colors hidden sm:table-cell"
+                            onClick={() => handleSort('customDomain')}
+                          >
+                            <div className="flex items-center space-x-2">
+                              <span>Domain</span>
+                              {renderSortIcon('customDomain')}
+                            </div>
+                          </TableHead>
+                          <TableHead 
+                            className="cursor-pointer hover:bg-muted/50 select-none transition-colors hidden md:table-cell"
+                            onClick={() => handleSort('adminEmail')}
+                          >
+                            <div className="flex items-center space-x-2">
+                              <span>Admin Email</span>
+                              {renderSortIcon('adminEmail')}
+                            </div>
+                          </TableHead>
+                          <TableHead 
+                            className="cursor-pointer hover:bg-muted/50 select-none transition-colors"
+                            onClick={() => handleSort('plan')}
+                          >
+                            <div className="flex items-center space-x-2">
+                              <span>Plan</span>
+                              {renderSortIcon('plan')}
+                            </div>
+                          </TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead 
+                            className="cursor-pointer hover:bg-muted/50 select-none transition-colors hidden lg:table-cell"
+                            onClick={() => handleSort('userCount')}
+                          >
+                            <div className="flex items-center space-x-2">
+                              <span>Users</span>
+                              {renderSortIcon('userCount')}
+                            </div>
+                          </TableHead>
+                          <TableHead 
+                            className="cursor-pointer hover:bg-muted/50 select-none transition-colors hidden xl:table-cell"
+                            onClick={() => handleSort('createdAt')}
+                          >
+                            <div className="flex items-center space-x-2">
+                              <span>Created</span>
+                              {renderSortIcon('createdAt')}
+                            </div>
+                          </TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {sortedServers.map((server: ModlServer) => (
+                          <TableRow key={server._id} className="hover:bg-muted/30 transition-colors">
+                            <TableCell>
+                              <div className="space-y-1">
+                                <div className="font-medium">
+                                  <Link href={`/servers/${server._id}`} className="hover:text-primary transition-colors">
+                                    {server.serverName}
+                                  </Link>
+                                </div>
+                                <div className="text-xs text-muted-foreground sm:hidden">
+                                  {server.customDomain}.modl.gg
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="hidden sm:table-cell">
+                              <div className="text-sm font-mono text-muted-foreground">
+                                {server.customDomain}.modl.gg
+                              </div>
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell">
+                              <div className="text-sm">{server.adminEmail}</div>
+                            </TableCell>
+                            <TableCell>
+                              {getPlanBadge(server.plan)}
+                            </TableCell>
+                            <TableCell>
+                              {getStatusBadge(server)}
+                            </TableCell>
+                            <TableCell className="hidden lg:table-cell">
+                              <div className="text-sm text-muted-foreground">
+                                {server.userCount ?? '-'}
+                              </div>
+                            </TableCell>
+                            <TableCell className="hidden xl:table-cell">
+                              <div className="text-sm text-muted-foreground">
+                                {formatDate(server.createdAt)}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end space-x-1">
+                                <Link href={`/servers/${server._id}`}>
+                                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                    <Eye className="w-4 h-4" />
+                                  </Button>
+                                </Link>
+                                <Button variant="ghost" size="sm" disabled className="h-8 w-8 p-0">
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button variant="ghost" size="sm" disabled className="h-8 w-8 p-0">
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* Pagination */}
+                  {pagination && pagination.pages > 1 && (
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm text-muted-foreground">
+                        Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, pagination.total)} of {pagination.total} results
+                      </div>
+                      <Pagination>
+                        <PaginationContent>
+                          <PaginationItem>
+                            <PaginationPrevious 
+                              href="#"
+                              onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                                e.preventDefault();
+                                if (currentPage > 1) setCurrentPage(currentPage - 1);
+                              }}
+                              className={currentPage <= 1 ? 'pointer-events-none opacity-50' : ''}
+                            />
+                          </PaginationItem>
+                          
+                          {[...Array(Math.min(pagination.pages, 7))].map((_, i) => {
+                            let pageNum;
+                            if (pagination.pages <= 7) {
+                              pageNum = i + 1;
+                            } else if (currentPage <= 4) {
+                              pageNum = i + 1;
+                            } else if (currentPage >= pagination.pages - 3) {
+                              pageNum = pagination.pages - 6 + i;
+                            } else {
+                              pageNum = currentPage - 3 + i;
+                            }
+                            
+                            if (pageNum < 1 || pageNum > pagination.pages) return null;
+                            
+                            return (
+                              <PaginationItem key={pageNum}>
+                                <PaginationLink
+                                  href="#"
+                                  onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                                    e.preventDefault();
+                                    setCurrentPage(pageNum);
+                                  }}
+                                  isActive={currentPage === pageNum}
+                                >
+                                  {pageNum}
+                                </PaginationLink>
+                              </PaginationItem>
+                            );
+                          })}
+                          
+                          <PaginationItem>
+                            <PaginationNext 
+                              href="#"
+                              onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                                e.preventDefault();
+                                if (currentPage < pagination.pages) setCurrentPage(currentPage + 1);
+                              }}
+                              className={currentPage >= pagination.pages ? 'pointer-events-none opacity-50' : ''}
+                            />
+                          </PaginationItem>
+                        </PaginationContent>
+                      </Pagination>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
