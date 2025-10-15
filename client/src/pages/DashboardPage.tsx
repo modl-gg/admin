@@ -95,9 +95,9 @@ export default function DashboardPage() {
                 Monitoring
               </a>
             </Link>
-            <Link href="/security">
+            <Link href="/analytics">
               <a className="px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground">
-                Security
+                Analytics
               </a>
             </Link>
             <Link href="/system">

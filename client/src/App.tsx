@@ -8,7 +8,6 @@ import MonitoringPage from '@/pages/MonitoringPage';
 import LoadingPage from '@/pages/LoadingPage';
 import AnalyticsPage from '@/pages/AnalyticsPage';
 import SystemConfigPage from '@/pages/SystemConfigPage';
-import SecurityPage from '@/pages/SecurityPage';
 import SystemPromptsPage from '@/pages/SystemPromptsPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -47,7 +46,6 @@ function AppRoutes() {
           <Route path="/analytics" component={AnalyticsPage} />
           <Route path="/system" component={SystemConfigPage} />
           <Route path="/system/prompts" component={SystemPromptsPage} />
-          <Route path="/security" component={SecurityPage} />
           <Route>
             <Redirect to="/" />
           </Route>

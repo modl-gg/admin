@@ -90,6 +90,48 @@ router.get('/dashboard', async (req, res) => {
     });
     const serverActivityTrend = Array.from(activityMap.entries()).map(([date, data]) => ({ date, ...data })).sort((a,b) => a.date.localeCompare(b.date));
 
+    // --- Player Growth Trend ---
+    const playerGrowthTrend = await ModlServerModel.aggregate([
+      { $match: { createdAt: { $gte: startDate } } },
+      { $group: { 
+        _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }, 
+        totalPlayers: { $sum: '$userCount' }
+      } },
+      { $sort: { _id: 1 } },
+      { $project: { date: '$_id', players: '$totalPlayers', _id: 0 } }
+    ]);
+    
+    // Calculate cumulative player growth
+    let cumulativePlayers = 0;
+    const playerGrowthWithCumulative = playerGrowthTrend.map((d: { date: string; players: number }) => {
+      cumulativePlayers += d.players;
+      return { date: d.date, players: d.players, cumulative: cumulativePlayers };
+    });
+
+    // --- Ticket Volume Trend ---
+    const ticketVolumeTrend = await ModlServerModel.aggregate([
+      { $match: { createdAt: { $gte: startDate } } },
+      { $group: { 
+        _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }, 
+        totalTickets: { $sum: '$ticketCount' }
+      } },
+      { $sort: { _id: 1 } },
+      { $project: { date: '$_id', tickets: '$totalTickets', _id: 0 } }
+    ]);
+
+    // --- Engagement Metrics ---
+    const serversWithData = await ModlServerModel.find({ 
+      provisioningStatus: 'completed',
+      userCount: { $gt: 0 }
+    }).lean();
+    
+    const avgPlayersPerServer = serversWithData.length > 0 
+      ? serversWithData.reduce((acc, s) => acc + (s.userCount || 0), 0) / serversWithData.length 
+      : 0;
+    
+    const avgTicketsPerServer = serversWithData.length > 0 
+      ? serversWithData.reduce((acc, s) => acc + (s.ticketCount || 0), 0) / serversWithData.length 
+      : 0;
 
     const geoDist = await ModlServerModel.aggregate([
         { $match: { region: { $ne: null } } },
@@ -120,9 +162,24 @@ router.get('/dashboard', async (req, res) => {
     res.json({
       success: true,
       data: {
-        overview: { totalServers, activeServers, totalUsers, totalTickets, serverGrowthRate: serverGrowthRate.toFixed(2), userGrowthRate: userGrowthRate.toFixed(2) },
+        overview: { 
+          totalServers, 
+          activeServers, 
+          totalUsers, 
+          totalTickets, 
+          serverGrowthRate: serverGrowthRate.toFixed(2), 
+          userGrowthRate: userGrowthRate.toFixed(2),
+          avgPlayersPerServer: avgPlayersPerServer.toFixed(1),
+          avgTicketsPerServer: avgTicketsPerServer.toFixed(1)
+        },
         serverMetrics: { byPlan, byStatus, registrationTrend: trendWithCumulative },
-        usageStatistics: { topServersByUsers, serverActivity: serverActivityTrend, geographicDistribution },
+        usageStatistics: { 
+          topServersByUsers, 
+          serverActivity: serverActivityTrend, 
+          geographicDistribution,
+          playerGrowth: playerGrowthWithCumulative,
+          ticketVolume: ticketVolumeTrend
+        },
         systemHealth: { errorRates }
       }
     });

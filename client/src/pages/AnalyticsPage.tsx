@@ -50,8 +50,10 @@ interface AnalyticsData {
     activeServers: number;
     totalUsers: number;
     totalTickets: number;
-    serverGrowthRate: number;
-    userGrowthRate: number;
+    serverGrowthRate: string;
+    userGrowthRate: string;
+    avgPlayersPerServer: string;
+    avgTicketsPerServer: string;
   };
   serverMetrics: {
     byPlan: Array<{ name: string; value: number; percentage: number }>;
@@ -59,14 +61,16 @@ interface AnalyticsData {
     registrationTrend: Array<{ date: string; servers: number; cumulative: number }>;
   };
   usageStatistics: {
-    topServersByUsers: Array<{ name: string; users: number; domain: string }>;
+    topServersByUsers: Array<{ serverName: string; userCount: number; customDomain: string }>;
     serverActivity: Array<{ date: string; activeServers: number; newRegistrations: number }>;
     geographicDistribution: Array<{ region: string; servers: number; percentage: number }>;
+    playerGrowth: Array<{ date: string; players: number; cumulative: number }>;
+    ticketVolume: Array<{ date: string; tickets: number }>;
   };
   systemHealth: {
     errorRates: Array<{ date: string; errors: number; warnings: number; critical: number }>;
-    uptime: Array<{ service: string; uptime: number; status: string }>;
-    performanceMetrics: Array<{ metric: string; value: number; trend: 'up' | 'down' | 'stable' }>;
+    uptime?: Array<{ service: string; uptime: number; status: string }>;
+    performanceMetrics?: Array<{ metric: string; value: number; trend: 'up' | 'down' | 'stable' }>;
   };
 }
 
@@ -167,11 +171,16 @@ export default function AnalyticsPage() {
                 <BarChart3 className="h-6 w-6 text-muted-foreground" />
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900">Analytics & Reports</h1>
-                  <p className="text-sm text-muted-foreground">System insights and data analysis</p>
+                  <p className="text-sm text-muted-foreground">
+                    System insights and data analysis {isLoading && <span className="inline-flex items-center"><Clock className="h-3 w-3 ml-2 animate-spin" /></span>}
+                  </p>
                 </div>
               </div>
             </div>
             <div className="flex items-center space-x-3">
+              <div className="text-xs text-muted-foreground">
+                Auto-refreshes every 5 min
+              </div>
               <select
                 value={dateRange}
                 onChange={(e) => setDateRange(e.target.value)}
@@ -278,6 +287,33 @@ export default function AnalyticsPage() {
               </Card>
             </div>
 
+            {/* Engagement Metrics */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Avg Players per Server</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{analytics.overview.avgPlayersPerServer}</div>
+                  <div className="text-xs text-muted-foreground">
+                    Engagement metric
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Avg Tickets per Server</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{analytics.overview.avgTicketsPerServer}</div>
+                  <div className="text-xs text-muted-foreground">
+                    Support activity
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
             {/* Server Registration Trend */}
             <Card>
               <CardHeader>
@@ -364,6 +400,63 @@ export default function AnalyticsPage() {
           </TabsContent>
 
           <TabsContent value="usage" className="space-y-6">
+            {/* Player Growth Chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Player Growth Trend</CardTitle>
+                <CardDescription>Total players across all servers over time</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={analytics.usageStatistics.playerGrowth}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Area 
+                      type="monotone" 
+                      dataKey="players" 
+                      stackId="1" 
+                      stroke="#10b981" 
+                      fill="#10b981" 
+                      fillOpacity={0.6}
+                      name="New Players"
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="cumulative" 
+                      stackId="2" 
+                      stroke="#3b82f6" 
+                      fill="#3b82f6" 
+                      fillOpacity={0.6}
+                      name="Total Players"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* Ticket Volume Chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Ticket Volume Trend</CardTitle>
+                <CardDescription>Support tickets created over time</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={analytics.usageStatistics.ticketVolume}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="tickets" fill="#f59e0b" name="Tickets Created" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
              <Card>
               <CardHeader>
                 <CardTitle>Top Servers by User Count</CardTitle>
@@ -372,18 +465,18 @@ export default function AnalyticsPage() {
               <CardContent>
                 <div className="space-y-4">
                   {analytics.usageStatistics.topServersByUsers.slice(0, 10).map((server, index) => (
-                    <div key={server.name} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div key={server.serverName} className="flex items-center justify-between p-3 border rounded-lg">
                       <div className="flex items-center space-x-3">
                         <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
                           <span className="text-sm font-semibold">#{index + 1}</span>
                         </div>
                         <div>
-                          <p className="font-medium">{server.name}</p>
-                          <p className="text-sm text-muted-foreground">{server.domain}</p>
+                          <p className="font-medium">{server.serverName}</p>
+                          <p className="text-sm text-muted-foreground">{server.customDomain}</p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-semibold">{server.users.toLocaleString()}</p>
+                        <p className="font-semibold">{server.userCount.toLocaleString()}</p>
                         <p className="text-sm text-muted-foreground">users</p>
                       </div>
                     </div>
