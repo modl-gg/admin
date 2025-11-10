@@ -113,7 +113,7 @@ export default function AnalyticsPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-muted-foreground">Loading analytics...</p>
@@ -124,8 +124,8 @@ export default function AnalyticsPage() {
 
   if (error || !analytics) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <header className="bg-white border-b">
+      <div className="min-h-screen bg-background">
+        <header className="bg-card border-b">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center py-6">
               <Link href="/">
@@ -144,7 +144,7 @@ export default function AnalyticsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <Card>
             <CardContent className="text-center py-8">
-              <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-red-500" />
+              <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-red-500 dark:text-red-400" />
               <h3 className="text-lg font-semibold mb-2">Failed to Load Analytics</h3>
               <p className="text-muted-foreground">Unable to fetch analytics data.</p>
             </CardContent>
@@ -155,9 +155,9 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-white border-b">
+      <header className="bg-card border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center">
@@ -170,7 +170,7 @@ export default function AnalyticsPage() {
               <div className="flex items-center space-x-3">
                 <BarChart3 className="h-6 w-6 text-muted-foreground" />
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Analytics & Reports</h1>
+                  <h1 className="text-2xl font-bold text-foreground">Analytics & Reports</h1>
                   <p className="text-sm text-muted-foreground">
                     System insights and data analysis {isLoading && <span className="inline-flex items-center"><Clock className="h-3 w-3 ml-2 animate-spin" /></span>}
                   </p>
@@ -227,9 +227,9 @@ export default function AnalyticsPage() {
                   <div className="text-2xl font-bold">{analytics.overview.totalServers}</div>
                   <div className="flex items-center text-xs text-muted-foreground">
                     {analytics.overview.serverGrowthRate > 0 ? (
-                      <TrendingUp className="h-3 w-3 mr-1 text-green-600" />
+                      <TrendingUp className="h-3 w-3 mr-1 text-green-600 dark:text-green-400" />
                     ) : (
-                      <TrendingDown className="h-3 w-3 mr-1 text-red-600" />
+                      <TrendingDown className="h-3 w-3 mr-1 text-red-600 dark:text-red-400" />
                     )}
                     {Math.abs(analytics.overview.serverGrowthRate)}% vs last period
                   </div>
@@ -262,9 +262,9 @@ export default function AnalyticsPage() {
                   <div className="text-2xl font-bold">{analytics.overview.totalUsers.toLocaleString()}</div>
                   <div className="flex items-center text-xs text-muted-foreground">
                     {analytics.overview.userGrowthRate > 0 ? (
-                      <TrendingUp className="h-3 w-3 mr-1 text-green-600" />
+                      <TrendingUp className="h-3 w-3 mr-1 text-green-600 dark:text-green-400" />
                     ) : (
-                      <TrendingDown className="h-3 w-3 mr-1 text-red-600" />
+                      <TrendingDown className="h-3 w-3 mr-1 text-red-600 dark:text-red-400" />
                     )}
                     {Math.abs(analytics.overview.userGrowthRate)}% growth
                   </div>

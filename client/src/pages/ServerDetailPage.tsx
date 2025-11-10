@@ -184,7 +184,7 @@ export default function ServerDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
@@ -192,8 +192,8 @@ export default function ServerDetailPage() {
 
   if (error || !server) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <header className="bg-white border-b">
+      <div className="min-h-screen bg-background">
+        <header className="bg-card border-b">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center py-6">
               <Link href="/servers">
@@ -212,7 +212,7 @@ export default function ServerDetailPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <Card>
             <CardContent className="text-center py-8">
-              <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-red-500" />
+              <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-red-500 dark:text-red-400" />
               <h3 className="text-lg font-semibold mb-2">Server Not Found</h3>
               <p className="text-muted-foreground">The requested server could not be found.</p>
             </CardContent>
@@ -223,9 +223,9 @@ export default function ServerDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-white border-b">
+      <header className="bg-card border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center">
@@ -238,7 +238,7 @@ export default function ServerDetailPage() {
               <div className="flex items-center space-x-3">
                 <Server className="h-6 w-6 text-muted-foreground" />
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">{server.serverName}</h1>
+                  <h1 className="text-2xl font-bold text-foreground">{server.serverName}</h1>
                   <p className="text-sm text-muted-foreground">{server.customDomain}</p>
                 </div>
               </div>
@@ -387,7 +387,7 @@ export default function ServerDetailPage() {
                         {getDomainStatusBadge(server.customDomain_status)}
                       </div>
                       {server.customDomain_error && (
-                        <p className="text-sm text-red-600 mt-1">{server.customDomain_error}</p>
+                        <p className="text-sm text-red-600 dark:text-red-400 mt-1">{server.customDomain_error}</p>
                       )}
                       {server.customDomain_lastChecked && (
                         <p className="text-xs text-muted-foreground mt-1">

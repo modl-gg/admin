@@ -26,28 +26,28 @@ export default function DashboardPage() {
   const getHealthStatusIcon = (status: string) => {
     switch (status) {
       case 'healthy':
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
+        return <CheckCircle className="h-4 w-4 text-green-500 dark:text-green-400" />;
       case 'degraded':
-        return <AlertCircle className="h-4 w-4 text-yellow-500" />;
+        return <AlertCircle className="h-4 w-4 text-yellow-500 dark:text-yellow-400" />;
       case 'critical':
-        return <XCircle className="h-4 w-4 text-red-500" />;
+        return <XCircle className="h-4 w-4 text-red-500 dark:text-red-400" />;
       default:
-        return <AlertTriangle className="h-4 w-4 text-gray-500" />;
+        return <AlertTriangle className="h-4 w-4 text-gray-500 dark:text-gray-400" />;
     }
   };
 
   const getHealthStatusColor = (status: string) => {
     switch (status) {
       case 'excellent':
-        return 'text-green-600';
+        return 'text-green-600 dark:text-green-400';
       case 'good':
-        return 'text-blue-600';
+        return 'text-blue-600 dark:text-blue-400';
       case 'fair':
-        return 'text-yellow-600';
+        return 'text-yellow-600 dark:text-yellow-400';
       case 'poor':
-        return 'text-red-600';
+        return 'text-red-600 dark:text-red-400';
       default:
-        return 'text-gray-600';
+        return 'text-gray-600 dark:text-gray-400';
     }
   };
 

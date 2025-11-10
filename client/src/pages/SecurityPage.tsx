@@ -12,9 +12,9 @@ export default function SecurityPage() {
   const { logout } = useAuth();
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-white border-b">
+      <header className="bg-card border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center">
@@ -27,7 +27,7 @@ export default function SecurityPage() {
               <div className="flex items-center space-x-3">
                 <Shield className="h-6 w-6 text-muted-foreground" />
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Security</h1>
+                  <h1 className="text-2xl font-bold text-foreground">Security</h1>
                   <p className="text-sm text-muted-foreground">Audit logs and security events</p>
                 </div>
               </div>

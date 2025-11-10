@@ -30,25 +30,25 @@ export default function MonitoringPage() {
 
   const getStatusIcon = (level: string, resolved: boolean) => {
     if (resolved) {
-      return <CheckCircle className="h-4 w-4 text-green-500" />;
+      return <CheckCircle className="h-4 w-4 text-green-500 dark:text-green-400" />;
     }
     
     switch (level) {
       case 'critical':
-        return <XCircle className="h-4 w-4 text-red-500" />;
+        return <XCircle className="h-4 w-4 text-red-500 dark:text-red-400" />;
       case 'error':
-        return <AlertCircle className="h-4 w-4 text-orange-500" />;
+        return <AlertCircle className="h-4 w-4 text-orange-500 dark:text-orange-400" />;
       case 'warning':
-        return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
+        return <AlertTriangle className="h-4 w-4 text-yellow-500 dark:text-yellow-400" />;
       default:
-        return <Clock className="h-4 w-4 text-blue-500" />;
+        return <Clock className="h-4 w-4 text-blue-500 dark:text-blue-400" />;
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-white border-b">
+      <header className="bg-card border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center">
@@ -58,7 +58,7 @@ export default function MonitoringPage() {
                   Back to Dashboard
                 </Button>
               </Link>
-              <h1 className="text-3xl font-bold text-gray-900">System Monitoring</h1>
+              <h1 className="text-3xl font-bold text-foreground">System Monitoring</h1>
             </div>
             <div className="flex items-center space-x-4">
               <Button onClick={logout} variant="outline">
@@ -90,7 +90,7 @@ export default function MonitoringPage() {
                   <CardTitle className="text-sm font-medium">Critical Issues</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-red-600">{metrics.logs.unresolved.critical}</div>
+                  <div className="text-2xl font-bold text-red-600 dark:text-red-400">{metrics.logs.unresolved.critical}</div>
                   <p className="text-xs text-muted-foreground">Unresolved</p>
                 </CardContent>
               </Card>
@@ -100,7 +100,7 @@ export default function MonitoringPage() {
                   <CardTitle className="text-sm font-medium">Error Count</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-orange-600">{metrics.logs.unresolved.error}</div>
+                  <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{metrics.logs.unresolved.error}</div>
                   <p className="text-xs text-muted-foreground">Unresolved</p>
                 </CardContent>
               </Card>

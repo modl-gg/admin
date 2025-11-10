@@ -21,19 +21,19 @@ const strictnessLevelInfo = {
   lenient: {
     title: 'Lenient Mode',
     description: 'More forgiving approach - gives players benefit of doubt',
-    color: 'bg-green-100 text-green-800 border-green-200',
+    color: 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400 border-green-200 dark:border-green-800',
     icon: <ShieldCheck className="h-4 w-4" />
   },
   standard: {
     title: 'Standard Mode',
     description: 'Balanced moderation - enforces rules fairly',
-    color: 'bg-blue-100 text-blue-800 border-blue-200',
+    color: 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-400 border-blue-200 dark:border-blue-800',
     icon: <Brain className="h-4 w-4" />
   },
   strict: {
     title: 'Strict Mode',
     description: 'Zero tolerance - proactive enforcement',
-    color: 'bg-red-100 text-red-800 border-red-200',
+    color: 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-400 border-red-200 dark:border-red-800',
     icon: <AlertTriangle className="h-4 w-4" />
   }
 };
@@ -176,9 +176,9 @@ export default function SystemPromptsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-white border-b">
+      <header className="bg-card border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center">
@@ -191,7 +191,7 @@ export default function SystemPromptsPage() {
               <div className="flex items-center space-x-3">
                 <Settings className="h-6 w-6 text-muted-foreground" />
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">AI System Prompts</h1>
+                  <h1 className="text-2xl font-bold text-foreground">AI System Prompts</h1>
                   <p className="text-sm text-muted-foreground">Configure AI moderation prompts for different strictness levels</p>
                 </div>
               </div>
@@ -222,7 +222,7 @@ export default function SystemPromptsPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     {hasUnsavedChanges && (
-                      <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
+                      <Badge variant="outline" className="bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800">
                         Unsaved Changes
                       </Badge>
                     )}
@@ -296,9 +296,9 @@ export default function SystemPromptsPage() {
         })}
       </div>
 
-      <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <h3 className="font-semibold text-blue-900 mb-2">About AI System Prompts</h3>
-        <div className="text-sm text-blue-800 space-y-1">
+      <div className="mt-8 p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+        <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">About AI System Prompts</h3>
+        <div className="text-sm text-blue-800 dark:text-blue-300 space-y-1">
           <p>• These prompts control how the AI analyzes chat messages for rule violations</p>
           <p>• Each strictness level determines how aggressive the AI moderation will be</p>
           <p>• Changes take effect immediately for new ticket analyses</p>

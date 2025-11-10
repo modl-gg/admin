@@ -235,11 +235,11 @@ export default function SystemLogs() {
   const getLevelBadge = (level: string) => {
     switch (level) {
       case 'critical':
-        return <Badge variant="destructive" className="bg-red-600"><XCircle className="h-3 w-3 mr-1" />Critical</Badge>;
+        return <Badge variant="destructive" className="bg-red-600 dark:bg-red-700"><XCircle className="h-3 w-3 mr-1" />Critical</Badge>;
       case 'error':
         return <Badge variant="destructive"><AlertTriangle className="h-3 w-3 mr-1" />Error</Badge>;
       case 'warning':
-        return <Badge className="bg-yellow-500"><AlertTriangle className="h-3 w-3 mr-1" />Warning</Badge>;
+        return <Badge className="bg-yellow-500 dark:bg-yellow-600"><AlertTriangle className="h-3 w-3 mr-1" />Warning</Badge>;
       case 'info':
         return <Badge variant="secondary"><Info className="h-3 w-3 mr-1" />Info</Badge>;
       default:
@@ -313,7 +313,7 @@ export default function SystemLogs() {
           <h3 className="text-lg font-semibold">System Logs</h3>
           <div className="flex items-center space-x-2">
             {newLogs.length > 0 && (
-              <Badge variant="default" className="bg-blue-600">
+              <Badge variant="default" className="bg-blue-600 dark:bg-blue-700">
                 <Zap className="h-3 w-3 mr-1" />
                 {newLogs.length} new
               </Badge>
@@ -321,7 +321,7 @@ export default function SystemLogs() {
             {pm2Status?.data && (
               <Badge 
                 variant={pm2Status.data.isEnabled && pm2Status.data.isStreaming ? "default" : "destructive"}
-                className={pm2Status.data.isEnabled && pm2Status.data.isStreaming ? "bg-green-600" : "bg-red-600"}
+                className={pm2Status.data.isEnabled && pm2Status.data.isStreaming ? "bg-green-600 dark:bg-green-700" : "bg-red-600 dark:bg-red-700"}
               >
                 PM2 {!pm2Status.data.isEnabled ? 'Disabled' : pm2Status.data.isStreaming ? 'Active' : 'Inactive'}
               </Badge>
@@ -336,12 +336,12 @@ export default function SystemLogs() {
               variant="outline" 
               size="sm" 
               onClick={() => setRealTimeEnabled(!realTimeEnabled)}
-              className={realTimeEnabled && isConnected ? 'text-green-600 border-green-600' : ''}
+              className={realTimeEnabled && isConnected ? 'text-green-600 dark:text-green-400 border-green-600 dark:border-green-400' : ''}
             >
               {isConnected ? (
-                <Wifi className={`h-4 w-4 mr-2 ${realTimeEnabled ? 'text-green-600' : ''}`} />
+                <Wifi className={`h-4 w-4 mr-2 ${realTimeEnabled ? 'text-green-600 dark:text-green-400' : ''}`} />
               ) : (
-                <WifiOff className="h-4 w-4 mr-2 text-red-500" />
+                <WifiOff className="h-4 w-4 mr-2 text-red-500 dark:text-red-400" />
               )}
               {realTimeEnabled ? 'Real-time' : 'Static'}
             </Button>
@@ -349,7 +349,7 @@ export default function SystemLogs() {
               variant="outline" 
               size="sm" 
               onClick={() => setAutoRefresh(!autoRefresh)}
-              className={autoRefresh ? 'text-blue-600' : ''}
+              className={autoRefresh ? 'text-blue-600 dark:text-blue-400' : ''}
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${autoRefresh ? 'animate-spin' : ''}`} />
               {autoRefresh ? 'Auto-refresh' : 'Manual'}
@@ -554,7 +554,7 @@ export default function SystemLogs() {
           </div>
         ) : error ? (
           <div className="text-center py-8">
-            <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <AlertTriangle className="h-12 w-12 text-red-500 dark:text-red-400 mx-auto mb-4" />
             <p className="text-destructive">Failed to load logs</p>
             <Button variant="outline" size="sm" onClick={() => refetch()} className="mt-2">
               <RotateCcw className="h-4 w-4 mr-2" />
@@ -626,7 +626,7 @@ export default function SystemLogs() {
                       </div>
                       <div className="col-span-1">
                         {log.resolved ? (
-                          <Badge variant="secondary" className="bg-green-100 text-green-800">
+                          <Badge variant="secondary" className="bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400">
                             Resolved
                           </Badge>
                         ) : (

@@ -189,7 +189,7 @@ export default function SystemConfigPage() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-muted-foreground">Loading system configuration...</p>
@@ -201,9 +201,9 @@ export default function SystemConfigPage() {
   // Error state
   if (configError || (!config && !isLoading)) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-background">
         {/* Header */}
-        <header className="bg-white border-b">
+        <header className="bg-card border-b">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center py-6">
               <div className="flex items-center">
@@ -216,7 +216,7 @@ export default function SystemConfigPage() {
                 <div className="flex items-center space-x-3">
                   <Settings className="h-6 w-6 text-muted-foreground" />
                   <div>
-                    <h1 className="text-2xl font-bold text-gray-900">System Configuration</h1>
+                    <h1 className="text-2xl font-bold text-foreground">System Configuration</h1>
                     <p className="text-sm text-muted-foreground">Manage global system settings and features</p>
                   </div>
                 </div>
@@ -232,7 +232,7 @@ export default function SystemConfigPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <Card>
             <CardContent className="text-center py-8">
-              <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-red-500" />
+              <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-red-500 dark:text-red-400" />
               <h3 className="text-lg font-semibold mb-2">Failed to Load Configuration</h3>
               <p className="text-muted-foreground mb-4">
                 {configError ? 'Unable to fetch system configuration.' : 'No configuration data available.'}
@@ -249,9 +249,9 @@ export default function SystemConfigPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-white border-b">
+      <header className="bg-card border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center">
@@ -294,13 +294,13 @@ export default function SystemConfigPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Maintenance Mode Alert */}
         {maintenanceStatus?.isActive && (
-          <Card className="mb-6 border-orange-200 bg-orange-50">
+          <Card className="mb-6 border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/30">
             <CardContent className="pt-6">
               <div className="flex items-center space-x-3">
-                <AlertTriangle className="h-5 w-5 text-orange-600" />
+                <AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-400" />
                 <div>
-                  <p className="font-medium text-orange-900">System is in Maintenance Mode</p>
-                  <p className="text-sm text-orange-700">{maintenanceStatus.message}</p>
+                  <p className="font-medium text-orange-900 dark:text-orange-100">System is in Maintenance Mode</p>
+                  <p className="text-sm text-orange-700 dark:text-orange-300">{maintenanceStatus.message}</p>
                 </div>
                 <Button 
                   variant="outline" 
@@ -385,7 +385,7 @@ export default function SystemConfigPage() {
                 <div className="border-t pt-6">
                   <h3 className="text-lg font-medium mb-4">AI System Management</h3>
                   <div className="space-y-4">
-                    <Card className="bg-blue-50 border-blue-200">
+                    <Card className="bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
                       <CardContent className="pt-6">
                         <div className="flex items-center justify-between">
                           <div>
