@@ -1,3 +1,5 @@
+import { MODL } from '@modl-gg/shared-web';
+
 export interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
@@ -15,11 +17,13 @@ export class ApiError extends Error {
   }
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? '' : MODL.Domain.HTTPS_API);
+
 class ApiClient {
   private baseUrl: string;
 
   constructor() {
-    this.baseUrl = '/api'; // Vite proxy will handle this
+    this.baseUrl = `${API_BASE_URL}/v1/admin`;
   }
 
   private async request<T>(
@@ -227,7 +231,7 @@ class ApiClient {
     endDate?: string;
   }) {
     const searchParams = new URLSearchParams();
-    
+
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
@@ -235,9 +239,35 @@ class ApiClient {
         }
       });
     }
-    
+
     const queryString = searchParams.toString();
     return this.request(`/monitoring/logs${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async deleteLogs(logIds: string[]) {
+    return this.request('/monitoring/logs/delete', {
+      method: 'POST',
+      body: JSON.stringify({ logIds }),
+    });
+  }
+
+  async exportLogs(filters?: Record<string, any>) {
+    const params = new URLSearchParams();
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          params.append(key, String(value));
+        }
+      });
+    }
+    const query = params.toString();
+    return this.request(`/monitoring/logs/export${query ? `?${query}` : ''}`);
+  }
+
+  async clearAllLogs() {
+    return this.request('/monitoring/logs/clear-all', {
+      method: 'POST',
+    });
   }
 
   // System Configuration

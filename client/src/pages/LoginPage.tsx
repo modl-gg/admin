@@ -8,6 +8,7 @@ import { Input } from '@modl-gg/shared-web/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@modl-gg/shared-web/components/ui/card';
 import { Alert, AlertDescription } from '@modl-gg/shared-web/components/ui/alert';
 import { Mail, Lock, AlertCircle } from 'lucide-react';
+import { MODL } from '@modl-gg/shared-web';
 
 const emailSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -100,7 +101,7 @@ export default function LoginPage() {
                   <Input
                     id="email"
                     type="email"
-                    placeholder="admin@modl.gg"
+                    placeholder={MODL.Email.ADMIN}
                     className="pl-10"
                     {...emailForm.register('email')}
                   />

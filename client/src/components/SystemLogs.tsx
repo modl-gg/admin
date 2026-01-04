@@ -136,18 +136,6 @@ export default function SystemLogs() {
   const sources = sourcesData?.sources || [];
   const categories = sourcesData?.categories || [];
 
-  // Get PM2 status
-  const { data: pm2Status } = useQuery({
-    queryKey: ['pm2-status'],
-    queryFn: async () => {
-      const response = await fetch('/api/monitoring/pm2-status', {
-        credentials: 'include'
-      });
-      const data = await response.json();
-      return data;
-    },
-    refetchInterval: 30000, // Check every 30 seconds
-  });
 
   // Resolve logs mutation
   const resolveMutation = useMutation({
@@ -164,14 +152,7 @@ export default function SystemLogs() {
   // Delete logs mutation
   const deleteMutation = useMutation({
     mutationFn: async (logIds: string[]) => {
-      const response = await fetch('/api/monitoring/logs/delete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ logIds })
-      });
-      if (!response.ok) throw new Error('Failed to delete logs');
-      return response.json();
+      return apiClient.deleteLogs(logIds);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['system-logs'] });
@@ -182,24 +163,23 @@ export default function SystemLogs() {
   // Export logs mutation
   const exportMutation = useMutation({
     mutationFn: async () => {
-      const params = new URLSearchParams({
-        ...(filters.level !== 'all' && { level: filters.level }),
-        ...(filters.source !== 'all' && { source: filters.source }),
-        ...(filters.category !== 'all' && { category: filters.category }),
-        ...(filters.resolved !== 'all' && { resolved: filters.resolved }),
-        ...(filters.search && { search: filters.search }),
-        ...(filters.startDate && { startDate: filters.startDate }),
-        ...(filters.endDate && { endDate: filters.endDate })
+      const params = new URLSearchParams();
+      if (filters.level !== 'all') params.append('level', filters.level);
+      if (filters.source !== 'all') params.append('source', filters.source);
+      if (filters.category !== 'all') params.append('category', filters.category);
+      if (filters.resolved !== 'all') params.append('resolved', filters.resolved);
+      if (filters.search) params.append('search', filters.search);
+      if (filters.startDate) params.append('startDate', filters.startDate);
+      if (filters.endDate) params.append('endDate', filters.endDate);
+
+      const API_BASE_URL = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? '' : 'https://api.modl.gg');
+      const query = params.toString();
+      const response = await fetch(`${API_BASE_URL}/v1/admin/monitoring/logs/export${query ? `?${query}` : ''}`, {
+        credentials: 'include',
       });
-      
-      const response = await fetch(`/api/monitoring/logs/export?${params}`, {
-        method: 'GET',
-        credentials: 'include'
-      });
-      
+
       if (!response.ok) throw new Error('Failed to export logs');
-      
-      // Create download link
+
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -215,12 +195,7 @@ export default function SystemLogs() {
   // Clear all logs mutation
   const clearAllMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch('/api/monitoring/logs/clear-all', {
-        method: 'POST',
-        credentials: 'include'
-      });
-      if (!response.ok) throw new Error('Failed to clear logs');
-      return response.json();
+      return apiClient.clearAllLogs();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['system-logs'] });
@@ -316,14 +291,6 @@ export default function SystemLogs() {
               <Badge variant="default" className="bg-blue-600 dark:bg-blue-700">
                 <Zap className="h-3 w-3 mr-1" />
                 {newLogs.length} new
-              </Badge>
-            )}
-            {pm2Status?.data && (
-              <Badge 
-                variant={pm2Status.data.isEnabled && pm2Status.data.isStreaming ? "default" : "destructive"}
-                className={pm2Status.data.isEnabled && pm2Status.data.isStreaming ? "bg-green-600 dark:bg-green-700" : "bg-red-600 dark:bg-red-700"}
-              >
-                PM2 {!pm2Status.data.isEnabled ? 'Disabled' : pm2Status.data.isStreaming ? 'Active' : 'Inactive'}
               </Badge>
             )}
           </div>
