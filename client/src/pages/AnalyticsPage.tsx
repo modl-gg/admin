@@ -224,14 +224,14 @@ export default function AnalyticsPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{analytics.overview.totalServers}</div>
+                  <div className="text-2xl font-bold">{analytics.overview.totalServers ?? 0}</div>
                   <div className="flex items-center text-xs text-muted-foreground">
-                    {analytics.overview.serverGrowthRate > 0 ? (
+                    {parseFloat(analytics.overview.serverGrowthRate) >= 0 ? (
                       <TrendingUp className="h-3 w-3 mr-1 text-green-600 dark:text-green-400" />
                     ) : (
                       <TrendingDown className="h-3 w-3 mr-1 text-red-600 dark:text-red-400" />
                     )}
-                    {Math.abs(analytics.overview.serverGrowthRate)}% vs last period
+                    {analytics.overview.serverGrowthRate ?? '0'}% vs last period
                   </div>
                 </CardContent>
               </Card>
@@ -244,9 +244,9 @@ export default function AnalyticsPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{analytics.overview.activeServers}</div>
+                  <div className="text-2xl font-bold">{analytics.overview.activeServers ?? 0}</div>
                   <div className="text-xs text-muted-foreground">
-                    {((analytics.overview.activeServers / analytics.overview.totalServers) * 100).toFixed(1)}% of total
+                    {analytics.overview.totalServers ? ((analytics.overview.activeServers / analytics.overview.totalServers) * 100).toFixed(1) : '0'}% of total
                   </div>
                 </CardContent>
               </Card>
@@ -259,14 +259,14 @@ export default function AnalyticsPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{analytics.overview.totalUsers.toLocaleString()}</div>
+                  <div className="text-2xl font-bold">{(analytics.overview.totalUsers ?? 0).toLocaleString()}</div>
                   <div className="flex items-center text-xs text-muted-foreground">
-                    {analytics.overview.userGrowthRate > 0 ? (
+                    {parseFloat(analytics.overview.userGrowthRate) >= 0 ? (
                       <TrendingUp className="h-3 w-3 mr-1 text-green-600 dark:text-green-400" />
                     ) : (
                       <TrendingDown className="h-3 w-3 mr-1 text-red-600 dark:text-red-400" />
                     )}
-                    {Math.abs(analytics.overview.userGrowthRate)}% growth
+                    {analytics.overview.userGrowthRate ?? '0'}% growth
                   </div>
                 </CardContent>
               </Card>
@@ -279,7 +279,7 @@ export default function AnalyticsPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{analytics.overview.totalTickets.toLocaleString()}</div>
+                  <div className="text-2xl font-bold">{(analytics.overview.totalTickets ?? 0).toLocaleString()}</div>
                   <div className="text-xs text-muted-foreground">
                     Across all servers
                   </div>
@@ -476,7 +476,7 @@ export default function AnalyticsPage() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-semibold">{server.userCount.toLocaleString()}</p>
+                        <p className="font-semibold">{(server.userCount ?? 0).toLocaleString()}</p>
                         <p className="text-sm text-muted-foreground">users</p>
                       </div>
                     </div>

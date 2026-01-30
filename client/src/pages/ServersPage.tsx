@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@modl-gg/shared-web/co
 import { Button } from '@modl-gg/shared-web/components/ui/button';
 import { Input } from '@modl-gg/shared-web/components/ui/input';
 import { Badge } from '@modl-gg/shared-web/components/ui/badge';
-import { 
+import {
   Table,
   TableBody,
   TableCell,
@@ -32,10 +32,11 @@ import {
 import { apiClient } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
-import { 
-  Server, 
-  Search, 
-  Plus, 
+import Logo from '@/components/Logo';
+import {
+  Server,
+  Search,
+  Plus,
   Filter,
   MoreHorizontal,
   LogOut,
@@ -165,12 +166,7 @@ export default function ServersPage() {
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <Server className="w-4 h-4 text-primary-foreground" />
-              </div>
-              <h1 className="text-2xl font-bold">modl Admin</h1>
-            </div>
+            <Logo />
             <div className="flex items-center space-x-4">
               <div className="text-sm text-muted-foreground">
                 {session?.email}

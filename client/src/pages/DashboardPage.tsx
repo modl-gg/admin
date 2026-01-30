@@ -5,11 +5,12 @@ import { Badge } from '@modl-gg/shared-web/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { useRealTimeMetrics } from '@/hooks/useMonitoring';
 import { formatDateRelative } from '@/lib/utils';
-import { 
-  Server, 
-  Users, 
-  Activity, 
-  AlertTriangle, 
+import Logo from '@/components/Logo';
+import {
+  Server,
+  Users,
+  Activity,
+  AlertTriangle,
   TrendingUp,
   Settings,
   LogOut,
@@ -57,12 +58,7 @@ export default function DashboardPage() {
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <Server className="w-4 h-4 text-primary-foreground" />
-              </div>
-              <h1 className="text-2xl font-bold">modl Admin</h1>
-            </div>
+            <Logo />
             <div className="flex items-center space-x-4">
               <div className="text-sm text-muted-foreground">
                 {session?.email}

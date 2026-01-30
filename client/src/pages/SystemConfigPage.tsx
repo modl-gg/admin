@@ -438,25 +438,25 @@ export default function SystemConfigPage() {
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <Database className="h-5 w-5 mr-2" />
-                  PM2 Log Streaming
+                  Docker Log Streaming
                 </CardTitle>
                 <CardDescription>
-                  Configure real-time log streaming from modl-panel PM2 instance
+                  Configure real-time log streaming from backend Docker containers (blue/green deployment)
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center space-x-2">
                   <Switch
-                    id="pm2LoggingEnabled"
+                    id="dockerLoggingEnabled"
                     checked={config?.logging?.pm2LoggingEnabled || false}
                     onCheckedChange={(checked) => handleConfigChange('logging', 'pm2LoggingEnabled', checked)}
                   />
-                  <label htmlFor="pm2LoggingEnabled" className="text-sm font-medium">
-                    Enable PM2 log streaming
+                  <label htmlFor="dockerLoggingEnabled" className="text-sm font-medium">
+                    Enable Docker log streaming
                   </label>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  When enabled, logs from the modl-panel PM2 instance will be streamed in real-time to the system logs.
+                  When enabled, logs from the active backend Docker container (modl-backend-blue or modl-backend-green) will be streamed in real-time to the system logs.
                   Disable this to prevent MongoDB from filling up during development.
                 </p>
                 

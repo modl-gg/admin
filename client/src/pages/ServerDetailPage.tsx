@@ -75,13 +75,15 @@ export default function ServerDetailPage() {
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
 
+  const isValidId = id && id !== 'undefined' && id !== 'null';
+
   const { data: server, isLoading, error } = useQuery<ServerDetails>({
     queryKey: ['server', id],
     queryFn: async () => {
       const response = await apiClient.getServer(id!);
       return response.data;
     },
-    enabled: !!id,
+    enabled: isValidId,
   });
 
   const { data: stats } = useQuery<ServerStats>({
@@ -90,7 +92,7 @@ export default function ServerDetailPage() {
       const response = await apiClient.getServerStats(id!);
       return response.data;
     },
-    enabled: !!id,
+    enabled: isValidId,
   });
 
   const deleteMutation = useMutation({
@@ -190,7 +192,7 @@ export default function ServerDetailPage() {
     );
   }
 
-  if (error || !server) {
+  if (!isValidId || error || !server) {
     return (
       <div className="min-h-screen bg-background">
         <header className="bg-card border-b">
@@ -214,7 +216,9 @@ export default function ServerDetailPage() {
             <CardContent className="text-center py-8">
               <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-red-500 dark:text-red-400" />
               <h3 className="text-lg font-semibold mb-2">Server Not Found</h3>
-              <p className="text-muted-foreground">The requested server could not be found.</p>
+              <p className="text-muted-foreground">
+                {!isValidId ? 'Invalid server ID provided.' : 'The requested server could not be found.'}
+              </p>
             </CardContent>
           </Card>
         </div>
