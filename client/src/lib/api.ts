@@ -17,32 +17,124 @@ export class ApiError extends Error {
   }
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? '' : MODL.Domain.HTTPS_API);
+function resolveApiBaseUrl(): string {
+  if (import.meta.env.DEV) {
+    return '';
+  }
+
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL;
+  }
+
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    if (!hostname.endsWith('.pages.dev') && !hostname.includes('localhost')) {
+      const parts = hostname.split('.');
+      if (parts.length >= 2) {
+        const baseDomain = parts.slice(-2).join('.');
+        return `https://api.${baseDomain}`;
+      }
+    }
+  }
+
+  return MODL.Domain.HTTPS_API;
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
+
+export function getApiUrl(path: string): string {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${API_BASE_URL}${normalizedPath}`;
+}
+
+export function getCurrentDomain(): string {
+  return window.location.hostname;
+}
+
+export function getApiBaseUrl(): string {
+  return API_BASE_URL;
+}
+
+type RequestMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+
+interface RequestOptions extends Omit<RequestInit, 'method' | 'body'> {
+  body?: unknown;
+}
+
+function createHeaders(options?: RequestOptions): Headers {
+  const headers = new Headers(options?.headers);
+  headers.set('X-Server-Domain', getCurrentDomain());
+
+  if (options?.body && (typeof options.body === 'object' || typeof options.body === 'string')) {
+    if (!headers.has('Content-Type')) {
+      headers.set('Content-Type', 'application/json');
+    }
+  }
+
+  return headers;
+}
+
+async function handleRateLimitIfNeeded(response: Response): Promise<void> {
+  if (response.status === 429) {
+    const { handleRateLimitResponse, getCurrentPath } = await import('../utils/rate-limit-handler');
+    await handleRateLimitResponse(response, getCurrentPath());
+    throw new Error('Rate limit exceeded');
+  }
+}
+
+export async function apiFetch(
+  path: string,
+  options: RequestOptions & { method?: RequestMethod } = {}
+): Promise<Response> {
+  const { method = 'GET', body, ...rest } = options;
+  const fullUrl = getApiUrl(path);
+  const headers = createHeaders(options);
+
+  let processedBody: string | undefined;
+  if (body !== undefined && body !== null) {
+    processedBody = typeof body === 'string' ? body : JSON.stringify(body);
+  }
+
+  const response = await fetch(fullUrl, {
+    ...rest,
+    method,
+    headers,
+    credentials: 'include',
+    body: processedBody,
+  });
+
+  await handleRateLimitIfNeeded(response);
+  return response;
+}
+
+export const api = {
+  get: (path: string, options?: RequestOptions) =>
+    apiFetch(path, { ...options, method: 'GET' }),
+
+  post: (path: string, body?: unknown, options?: RequestOptions) =>
+    apiFetch(path, { ...options, method: 'POST', body }),
+
+  put: (path: string, body?: unknown, options?: RequestOptions) =>
+    apiFetch(path, { ...options, method: 'PUT', body }),
+
+  patch: (path: string, body?: unknown, options?: RequestOptions) =>
+    apiFetch(path, { ...options, method: 'PATCH', body }),
+
+  delete: (path: string, options?: RequestOptions) =>
+    apiFetch(path, { ...options, method: 'DELETE' }),
+};
 
 class ApiClient {
-  private baseUrl: string;
-
-  constructor() {
-    this.baseUrl = `${API_BASE_URL}/v1/admin`;
-  }
+  private baseUrl = '/v1/admin';
 
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: { method?: RequestMethod; body?: unknown } = {}
   ): Promise<ApiResponse<T>> {
-    const url = `${this.baseUrl}${endpoint}`;
-    
-    const config: RequestInit = {
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      ...options,
-    };
+    const { method = 'GET', body } = options;
 
     try {
-      const response = await fetch(url, config);
+      const response = await apiFetch(`${this.baseUrl}${endpoint}`, { method, body });
       const data = await response.json();
 
       if (!response.ok) {
@@ -52,31 +144,25 @@ class ApiClient {
       return data;
     } catch (error) {
       if (error instanceof ApiError) {
-        // Don't log expected 401 errors for the session check
         if (endpoint === '/auth/session' && error.status === 401) {
-          // Do nothing, this is an expected "error" for logged-out users
-        } else {
-          console.error(`API request failed with status ${error.status}:`, error.message);
+          // Expected for logged-out users
         }
-      } else {
-        console.error('API request failed:', error);
       }
       throw error;
     }
   }
 
-  // Auth endpoints
   async requestCode(email: string) {
     return this.request('/auth/request-code', {
       method: 'POST',
-      body: JSON.stringify({ email }),
+      body: { email },
     });
   }
 
   async login(email: string, code: string) {
     return this.request('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, code }),
+      body: { email, code },
     });
   }
 
@@ -90,7 +176,6 @@ class ApiClient {
     return this.request('/auth/session');
   }
 
-  // Server management endpoints
   async getServers(params?: {
     page?: number;
     limit?: number;
@@ -108,7 +193,7 @@ class ApiClient {
         }
       });
     }
-    
+
     const query = queryParams.toString();
     return this.request(`/servers${query ? `?${query}` : ''}`);
   }
@@ -128,14 +213,14 @@ class ApiClient {
   }) {
     return this.request(`/servers/${id}/stats`, {
       method: 'PUT',
-      body: JSON.stringify(stats),
+      body: stats,
     });
   }
 
   async updateServer(id: string, data: any) {
     return this.request(`/servers/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(data),
+      body: data,
     });
   }
 
@@ -148,22 +233,17 @@ class ApiClient {
   async createServer(data: any) {
     return this.request('/servers', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: data,
     });
   }
 
   async bulkServerAction(action: string, serverIds: string[], parameters?: any) {
     return this.request('/servers/bulk', {
       method: 'POST',
-      body: JSON.stringify({
-        action,
-        serverIds,
-        parameters,
-      }),
+      body: { action, serverIds, parameters },
     });
   }
 
-  // Reset server to provisioning state (clears database and resets provisioning status)
   async resetDatabase(id: string) {
     return this.request(`/servers/${id}/reset-database`, {
       method: 'POST',
@@ -176,17 +256,14 @@ class ApiClient {
     });
   }
 
-  // Dashboard/Analytics endpoints
   async getDashboardStats() {
     return this.request('/analytics/dashboard');
   }
 
-  // Health check
   async healthCheck() {
     return this.request('/health');
   }
 
-  // Monitoring endpoints
   async getDashboardMetrics() {
     return this.request('/monitoring/dashboard');
   }
@@ -202,7 +279,7 @@ class ApiClient {
   async resolveLog(logId: string, resolvedBy?: string) {
     return this.request(`/monitoring/logs/${logId}/resolve`, {
       method: 'PUT',
-      body: JSON.stringify({ resolvedBy }),
+      body: { resolvedBy },
     });
   }
 
@@ -215,7 +292,7 @@ class ApiClient {
   }) {
     return this.request('/monitoring/logs', {
       method: 'POST',
-      body: JSON.stringify(logData),
+      body: logData,
     });
   }
 
@@ -247,7 +324,7 @@ class ApiClient {
   async deleteLogs(logIds: string[]) {
     return this.request('/monitoring/logs/delete', {
       method: 'POST',
-      body: JSON.stringify({ logIds }),
+      body: { logIds },
     });
   }
 
@@ -270,7 +347,6 @@ class ApiClient {
     });
   }
 
-  // System Configuration
   async getSystemConfig() {
     return this.request('/system/config');
   }
@@ -278,7 +354,7 @@ class ApiClient {
   async updateSystemConfig(config: any) {
     return this.request('/system/config', {
       method: 'PUT',
-      body: JSON.stringify(config),
+      body: config,
     });
   }
 
@@ -289,7 +365,7 @@ class ApiClient {
   async toggleMaintenanceMode(params: { enabled: boolean; message?: string }) {
     return this.request('/system/maintenance/toggle', {
       method: 'POST',
-      body: JSON.stringify(params),
+      body: params,
     });
   }
 
@@ -299,7 +375,6 @@ class ApiClient {
     });
   }
 
-  // Analytics - Enhanced methods
   async getAnalytics(range: string) {
     return this.request(`/analytics/dashboard?range=${range}`);
   }
@@ -307,14 +382,14 @@ class ApiClient {
   async exportAnalytics(type: string, range: string) {
     return this.request('/analytics/export', {
       method: 'POST',
-      body: JSON.stringify({ type, range }),
+      body: { type, range },
     });
   }
 
   async generateReport(params: any) {
     return this.request('/analytics/report', {
       method: 'POST',
-      body: JSON.stringify(params),
+      body: params,
     });
   }
 
@@ -326,29 +401,26 @@ class ApiClient {
     return this.request(`/analytics/historical?metric=${metric}&range=${range}`);
   }
 
-  // Enhanced server export
   async getServerExport(format: string, filters?: any) {
     return this.request('/servers/export', {
       method: 'POST',
-      body: JSON.stringify({ format, filters }),
+      body: { format, filters },
     });
   }
 
-  // Advanced Search
   async searchServers(query: string, filters?: any) {
     return this.request('/servers/search', {
       method: 'POST',
-      body: JSON.stringify({ query, filters }),
+      body: { query, filters },
     });
   }
 
-  // Security and Audit
   async getAuditLogs(params?: any) {
     const queryParams = new URLSearchParams();
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
         if (value !== undefined) {
-          queryParams.append(key, value.toString());
+          queryParams.append(key, (value as any).toString());
         }
       });
     }
@@ -361,7 +433,7 @@ class ApiClient {
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
         if (value !== undefined) {
-          queryParams.append(key, value.toString());
+          queryParams.append(key, (value as any).toString());
         }
       });
     }
@@ -375,7 +447,6 @@ class ApiClient {
     });
   }
 
-  // Rate Limiting
   async getRateLimitStatus() {
     return this.request('/system/rate-limits');
   }
@@ -383,11 +454,10 @@ class ApiClient {
   async updateRateLimits(config: any) {
     return this.request('/system/rate-limits', {
       method: 'PUT',
-      body: JSON.stringify(config),
+      body: config,
     });
   }
 
-  // System Prompts Management
   async getSystemPrompts() {
     return this.request('/system/prompts');
   }
@@ -395,15 +465,15 @@ class ApiClient {
   async updateSystemPrompt(strictnessLevel: 'lenient' | 'standard' | 'strict', prompt: string) {
     return this.request(`/system/prompts/${strictnessLevel}`, {
       method: 'PUT',
-      body: JSON.stringify({ prompt })
+      body: { prompt },
     });
   }
 
   async resetSystemPrompt(strictnessLevel: 'lenient' | 'standard' | 'strict') {
     return this.request(`/system/prompts/${strictnessLevel}/reset`, {
-      method: 'POST'
+      method: 'POST',
     });
   }
 }
 
-export const apiClient = new ApiClient(); 
+export const apiClient = new ApiClient();

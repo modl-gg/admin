@@ -1,4 +1,5 @@
 import { Route, Switch, Redirect } from 'wouter';
+import { Toaster } from '@modl-gg/shared-web/components/ui/toaster';
 import { useAuth } from '@/hooks/useAuth';
 import LoginPage from '@/pages/LoginPage';
 import DashboardPage from '@/pages/DashboardPage';
@@ -59,6 +60,7 @@ function App() {
   return (
     <div className="min-h-screen bg-background font-sans antialiased">
       <AppRoutes />
+      <Toaster />
     </div>
   );
 }
