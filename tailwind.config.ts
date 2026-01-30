@@ -1,10 +1,11 @@
-/** @type {import('tailwindcss').Config} */
+import type { Config } from "tailwindcss";
+
 export default {
   darkMode: ["class"],
   content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
-    "../../modl-shared-web/src/**/*.{js,ts,jsx,tsx}",
+    "./client/index.html",
+    "./client/src/**/*.{js,ts,jsx,tsx}",
+    "./node_modules/@modl-gg/shared-web/src/**/*.{js,ts,jsx,tsx}",
   ],
   prefix: "",
   theme: {
@@ -83,4 +84,4 @@ export default {
     },
   },
   plugins: [require("tailwindcss-animate")],
-} 
+} satisfies Config;

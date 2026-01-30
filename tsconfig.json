@@ -1,41 +1,29 @@
 {
+  "include": ["client/src/**/*", "shared/**/*"],
+  "exclude": ["node_modules", "build", "dist", "**/*.test.ts"],
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "commonjs",
-    "lib": ["ES2022"],
-    "allowJs": true,
-    "outDir": "./dist",
-    "removeComments": true,
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
+    "incremental": true,
+    "tsBuildInfoFile": "./node_modules/typescript/tsbuildinfo",
+    "noEmit": true,
+    "module": "ESNext",
     "strict": true,
+    "lib": ["esnext", "dom", "dom.iterable"],
+    "jsx": "preserve",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
     "strictFunctionTypes": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "skipLibCheck": true,
-    "resolveJsonModule": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-    "moduleResolution": "node",
-    "baseUrl": "./",
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "bundler",
+    "baseUrl": ".",
+    "types": ["vite/client"],
     "paths": {
-      "@/*": ["./shared/*"],
-      "@server/*": ["./server/*"],
-      "@client/*": ["./client/src/*"]
+      "@/*": ["./client/src/*"],
+      "@shared/*": ["./shared/*"]
     }
-  },
-  "include": [
-    "server/**/*",
-    "shared/**/*"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "client"
-  ]
-} 
+  }
+}
