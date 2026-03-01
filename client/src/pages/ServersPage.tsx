@@ -92,6 +92,14 @@ export default function ServersPage() {
 
   const servers = serversData?.servers || [];
   const pagination = serversData?.pagination || { total: 0, pages: 0, page: 1, limit: pageSize };
+  const serverIdsForUsage = servers.map((server) => server.id).filter((id) => id.length > 0);
+
+  const { data: usageByServerId, isLoading: isUsageLoading } = useQuery({
+    queryKey: ['servers', 'usage', serverIdsForUsage.join(',')],
+    queryFn: () => serversService.getServerUsageBatch(serverIdsForUsage),
+    enabled: serverIdsForUsage.length > 0,
+    staleTime: 2 * 60 * 1000,
+  });
 
   // Use server-side sorted data directly since we're now passing sort parameters to the API
   const sortedServers = servers;
@@ -259,7 +267,6 @@ export default function ServersPage() {
                       <SelectItem value="10">10</SelectItem>
                       <SelectItem value="20">20</SelectItem>
                       <SelectItem value="50">50</SelectItem>
-                      <SelectItem value="100">100</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -442,7 +449,15 @@ export default function ServersPage() {
                             </TableCell>
                             <TableCell className="hidden lg:table-cell">
                               <div className="text-sm text-muted-foreground">
-                                {server.userCount ?? '-'}
+                                {(() => {
+                                  const usageUserCount = usageByServerId?.[server.id]?.userCount;
+                                  const userCount = usageUserCount ?? server.userCount;
+                                  if (typeof userCount === 'number') {
+                                    return userCount.toLocaleString();
+                                  }
+
+                                  return isUsageLoading ? '...' : '-';
+                                })()}
                               </div>
                             </TableCell>
                             <TableCell className="hidden xl:table-cell">

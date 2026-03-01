@@ -1,6 +1,7 @@
 import { requestJsonRaw } from '@/lib/api';
 import {
   getOptionalString,
+  isRecord,
   normalizeDateValue,
   unwrapEnvelope,
   unwrapEnvelopeOptionalData,
@@ -55,6 +56,13 @@ export interface ServerStats {
   databaseSize: number;
 }
 
+export interface ServerUsageSummary {
+  userCount: number;
+  ticketCount: number;
+  updatedAt?: string;
+  fromCache: boolean;
+}
+
 export interface PaginatedServers {
   servers: AdminServerListItem[];
   pagination: {
@@ -106,6 +114,17 @@ interface RawStatsPayload {
   totalLogs?: unknown;
   lastActivity?: unknown;
   databaseSize?: unknown;
+}
+
+interface RawUsageSummary {
+  userCount?: unknown;
+  ticketCount?: unknown;
+  updatedAt?: unknown;
+  fromCache?: unknown;
+}
+
+interface RawUsagePayload {
+  usage?: unknown;
 }
 
 function parseNumber(value: unknown, fallback = 0): number {
@@ -248,6 +267,15 @@ function toBackendSubscriptionStatus(value: SubscriptionStatus): string {
   return value.toUpperCase();
 }
 
+function mapUsageSummary(raw: RawUsageSummary): ServerUsageSummary {
+  return {
+    userCount: parseNumber(raw.userCount, 0),
+    ticketCount: parseNumber(raw.ticketCount, 0),
+    updatedAt: normalizeDateValue(raw.updatedAt),
+    fromCache: raw.fromCache === true,
+  };
+}
+
 export interface GetServersParams {
   page?: number;
   limit?: number;
@@ -329,6 +357,38 @@ export const serversService = {
       lastActivity: normalizeDateValue(data.lastActivity),
       databaseSize: parseNumber(data.databaseSize),
     };
+  },
+
+  async getServerUsageBatch(serverIds: string[], forceRefresh = false): Promise<Record<string, ServerUsageSummary>> {
+    if (serverIds.length === 0) {
+      return {};
+    }
+
+    const dedupedIds = Array.from(new Set(serverIds.map((id) => id.trim()).filter((id) => id.length > 0))).slice(0, 50);
+
+    if (dedupedIds.length === 0) {
+      return {};
+    }
+
+    const raw = await requestJsonRaw<unknown>('/v1/admin/servers/usage/batch', {
+      method: 'POST',
+      body: {
+        serverIds: dedupedIds,
+        forceRefresh,
+      },
+    });
+
+    const { data } = unwrapEnvelope<RawUsagePayload>(raw, 'admin server usage batch');
+    const usageRaw = isRecord(data.usage) ? data.usage : {};
+
+    const usageById: Record<string, ServerUsageSummary> = {};
+    Object.entries(usageRaw).forEach(([serverId, entry]) => {
+      if (isRecord(entry)) {
+        usageById[serverId] = mapUsageSummary(entry);
+      }
+    });
+
+    return usageById;
   },
 
   async updateServer(id: string, input: UpdateServerInput): Promise<AdminServerDetails> {
