@@ -40,7 +40,7 @@ function AppRoutes() {
       
       <ProtectedRoute>
         <Switch>
-          <Route path="/" component={DashboardPage} exact />
+          <Route path="/" component={DashboardPage} />
           <Route path="/servers" component={ServersPage} />
           <Route path="/servers/:id" component={ServerDetailPage} />
           <Route path="/monitoring" component={MonitoringPage} />

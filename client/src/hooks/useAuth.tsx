@@ -1,93 +1,77 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiClient, ApiError } from '@/lib/api';
-
-interface AdminSession {
-  email?: string;
-  lastActivityAt?: string;
-  loggedInIps?: string[];
-  isAuthenticated: boolean;
-}
+import { ApiError } from '@/lib/api';
+import { authService, type AdminSession } from '@/lib/services/auth-service';
 
 export function useAuth() {
   const queryClient = useQueryClient();
 
-  // Query for current session
   const {
     data: session,
     isLoading,
-    error
+    error,
   } = useQuery<AdminSession>({
     queryKey: ['auth', 'session'],
     queryFn: async () => {
       try {
-        const response = await apiClient.getSession();
-        return response.data;
-      } catch (error) {
-        if (error instanceof ApiError && error.status === 401) {
-          // This is the expected state for a logged-out user.
-          // Return a "success" state with isAuthenticated: false.
-          return { isAuthenticated: false };
+        return await authService.getSession();
+      } catch (caught) {
+        if (caught instanceof ApiError && caught.status === 401) {
+          return {
+            isAuthenticated: false,
+            loggedInIps: [],
+          };
         }
-        // For all other errors, re-throw to let React Query handle them.
-        throw error;
+
+        throw caught;
       }
     },
-    staleTime: 10 * 60 * 1000, // 10 minutes
-    retry: false, // We've handled the 401, so no need for retries.
+    staleTime: 10 * 60 * 1000,
+    retry: false,
   });
 
-  // Request verification code mutation
   const requestCodeMutation = useMutation({
-    mutationFn: (email: string) => apiClient.requestCode(email),
-    onError: (error) => {
-      console.error('Request code failed:', error);
-    }
+    mutationFn: (email: string) => authService.requestCode(email),
+    onError: (caught) => {
+      console.error('Request code failed:', caught);
+    },
   });
 
-  // Login mutation
   const loginMutation = useMutation({
-    mutationFn: ({ email, code }: { email: string; code: string }) => 
-      apiClient.login(email, code),
+    mutationFn: ({ email, code }: { email: string; code: string }) => authService.login(email, code),
     onSuccess: () => {
-      // Invalidate and refetch session data
       queryClient.invalidateQueries({ queryKey: ['auth', 'session'] });
     },
-    onError: (error) => {
-      console.error('Login failed:', error);
-    }
+    onError: (caught) => {
+      console.error('Login failed:', caught);
+    },
   });
 
-  // Logout mutation
   const logoutMutation = useMutation({
-    mutationFn: () => apiClient.logout(),
+    mutationFn: () => authService.logout(),
     onSuccess: () => {
-      // Clear all cached data on logout
       queryClient.clear();
     },
-    onError: (error) => {
-      console.error('Logout failed:', error);
-      // Even if logout fails on server, clear local cache
+    onError: (caught) => {
+      console.error('Logout failed:', caught);
       queryClient.clear();
-    }
+    },
   });
 
   return {
-    // Session data
     session,
     isAuthenticated: session?.isAuthenticated ?? false,
     isLoading,
     error,
-    
-    // Mutations
+
     requestCode: requestCodeMutation.mutate,
     isRequestingCode: requestCodeMutation.isPending,
     requestCodeError: requestCodeMutation.error,
-    
+
     login: loginMutation.mutate,
     isLoggingIn: loginMutation.isPending,
     loginError: loginMutation.error,
     
-    logout: logoutMutation.mutate,
+    logout: () => logoutMutation.mutate(),
     isLoggingOut: logoutMutation.isPending,
   };
-} 
+}

@@ -7,7 +7,7 @@ import { Card, CardContent } from '@modl-gg/shared-web/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@modl-gg/shared-web/components/ui/select';
 import { Checkbox } from '@modl-gg/shared-web/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@modl-gg/shared-web/components/ui/alert-dialog';
-import { apiClient } from '@/lib/api';
+import { monitoringService, type SystemLog, type LogFilters } from '@/lib/services/monitoring-service';
 import { formatDate, formatDateRelative } from '@/lib/utils';
 import { useSocket } from '@/hooks/use-socket';
 import { 
@@ -20,9 +20,7 @@ import {
   XCircle,
   Info,
   RotateCcw,
-  Calendar,
   Eye,
-  EyeOff,
   ArrowUp,
   ArrowDown,
   RefreshCw,
@@ -32,28 +30,7 @@ import {
   Zap
 } from 'lucide-react';
 
-interface SystemLog {
-  _id: string;
-  level: 'info' | 'warning' | 'error' | 'critical';
-  message: string;
-  source: string;
-  category?: string;
-  timestamp: string;
-  metadata?: Record<string, any>;
-  resolved?: boolean;
-  resolvedBy?: string;
-  resolvedAt?: string;
-}
-
-interface LogFilters {
-  level: string;
-  source: string;
-  category: string;
-  resolved: string;
-  search: string;
-  startDate: string;
-  endDate: string;
-}
+type UiLogFilters = Omit<LogFilters, 'resolved' | 'page' | 'limit' | 'sortBy' | 'sortOrder'> & { resolved: string };
 
 export default function SystemLogs() {
   const queryClient = useQueryClient();
@@ -66,7 +43,7 @@ export default function SystemLogs() {
   const [realTimeEnabled, setRealTimeEnabled] = useState(true);
   const [showClearAllDialog, setShowClearAllDialog] = useState(false);
   
-  const [filters, setFilters] = useState<LogFilters>({
+  const [filters, setFilters] = useState<UiLogFilters>({
     level: 'all',
     source: 'all',
     category: 'all',
@@ -99,17 +76,19 @@ export default function SystemLogs() {
       }, 2000);
       return () => clearTimeout(timer);
     }
+
+    return undefined;
   }, [newLogs, realTimeEnabled, queryClient, clearNewLogs]);
 
   // Fetch logs with real-time updates
   const { data: logsData, isLoading, error, refetch } = useQuery({
     queryKey: ['system-logs', page, filters, sortBy, sortOrder],
     queryFn: async () => {
-      const params = {
+      return monitoringService.getSystemLogs({
         page,
         limit: 20,
-        sortBy,
-        sortOrder,
+        sortBy: sortBy,
+        sortOrder: sortOrder,
         ...(filters.level !== 'all' && { level: filters.level }),
         ...(filters.source !== 'all' && { source: filters.source }),
         ...(filters.category !== 'all' && { category: filters.category }),
@@ -117,9 +96,7 @@ export default function SystemLogs() {
         ...(filters.search && { search: filters.search }),
         ...(filters.startDate && { startDate: filters.startDate }),
         ...(filters.endDate && { endDate: filters.endDate })
-      };
-      const response = await apiClient.getSystemLogs(params);
-      return response.data;
+      });
     },
     refetchInterval: autoRefresh ? 15000 : false, // Refresh every 15 seconds
   });
@@ -127,10 +104,7 @@ export default function SystemLogs() {
   // Get available log sources
   const { data: sourcesData } = useQuery({
     queryKey: ['log-sources'],
-    queryFn: async () => {
-      const response = await apiClient.getLogSources();
-      return response.data;
-    },
+    queryFn: () => monitoringService.getLogSources(),
   });
 
   const sources = sourcesData?.sources || [];
@@ -140,7 +114,7 @@ export default function SystemLogs() {
   // Resolve logs mutation
   const resolveMutation = useMutation({
     mutationFn: async (logIds: string[]) => {
-      const promises = logIds.map(id => apiClient.resolveLog(id, 'admin'));
+      const promises = logIds.map((id) => monitoringService.resolveLog(id, 'admin'));
       await Promise.all(promises);
     },
     onSuccess: () => {
@@ -152,7 +126,7 @@ export default function SystemLogs() {
   // Delete logs mutation
   const deleteMutation = useMutation({
     mutationFn: async (logIds: string[]) => {
-      return apiClient.deleteLogs(logIds);
+      return monitoringService.deleteLogs(logIds);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['system-logs'] });
@@ -163,24 +137,15 @@ export default function SystemLogs() {
   // Export logs mutation
   const exportMutation = useMutation({
     mutationFn: async () => {
-      const params = new URLSearchParams();
-      if (filters.level !== 'all') params.append('level', filters.level);
-      if (filters.source !== 'all') params.append('source', filters.source);
-      if (filters.category !== 'all') params.append('category', filters.category);
-      if (filters.resolved !== 'all') params.append('resolved', filters.resolved);
-      if (filters.search) params.append('search', filters.search);
-      if (filters.startDate) params.append('startDate', filters.startDate);
-      if (filters.endDate) params.append('endDate', filters.endDate);
-
-      const API_BASE_URL = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? '' : 'https://api.modl.gg');
-      const query = params.toString();
-      const response = await fetch(`${API_BASE_URL}/v1/admin/monitoring/logs/export${query ? `?${query}` : ''}`, {
-        credentials: 'include',
+      const blob = await monitoringService.exportLogs({
+        ...(filters.level !== 'all' && { level: filters.level }),
+        ...(filters.source !== 'all' && { source: filters.source }),
+        ...(filters.category !== 'all' && { category: filters.category }),
+        ...(filters.resolved !== 'all' && { resolved: filters.resolved === 'true' }),
+        ...(filters.search && { search: filters.search }),
+        ...(filters.startDate && { startDate: filters.startDate }),
+        ...(filters.endDate && { endDate: filters.endDate }),
       });
-
-      if (!response.ok) throw new Error('Failed to export logs');
-
-      const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -195,7 +160,7 @@ export default function SystemLogs() {
   // Clear all logs mutation
   const clearAllMutation = useMutation({
     mutationFn: async () => {
-      return apiClient.clearAllLogs();
+      return monitoringService.clearAllLogs();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['system-logs'] });
@@ -226,7 +191,7 @@ export default function SystemLogs() {
     if (selectedLogs.length === logs.length) {
       setSelectedLogs([]);
     } else {
-      setSelectedLogs(logs.map(log => log._id));
+      setSelectedLogs(logs.map((log) => log.id));
     }
   };
 
@@ -261,7 +226,7 @@ export default function SystemLogs() {
     clearAllMutation.mutate();
   };
 
-  const handleFilterChange = (key: keyof LogFilters, value: string) => {
+  const handleFilterChange = (key: keyof UiLogFilters, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }));
     setPage(1); // Reset to first page when filtering
   };
@@ -557,11 +522,11 @@ export default function SystemLogs() {
             {/* Table Body */}
             <div className="divide-y">
               {logs.map((log: SystemLog) => (
-                <div key={log._id} className="p-4 hover:bg-muted/30">
+                <div key={log.id} className="p-4 hover:bg-muted/30">
                   <div className="flex items-start space-x-4">
                     <Checkbox
-                      checked={selectedLogs.includes(log._id)}
-                      onCheckedChange={() => handleSelectLog(log._id)}
+                      checked={selectedLogs.includes(log.id)}
+                      onCheckedChange={() => handleSelectLog(log.id)}
                     />
                     <div className="grid grid-cols-12 gap-4 flex-1">
                       <div className="col-span-1">
@@ -609,7 +574,7 @@ export default function SystemLogs() {
                             <Button 
                               variant="ghost" 
                               size="sm"
-                              onClick={() => resolveMutation.mutate([log._id])}
+                              onClick={() => resolveMutation.mutate([log.id])}
                               disabled={resolveMutation.isPending}
                             >
                               <CheckCircle className="h-3 w-3" />

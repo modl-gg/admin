@@ -1,18 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { apiClient } from '@/lib/api';
-
-interface SystemLog {
-  _id: string;
-  level: 'info' | 'warning' | 'error' | 'critical';
-  message: string;
-  source: string;
-  category?: string;
-  timestamp: string;
-  metadata?: Record<string, any>;
-  resolved?: boolean;
-  resolvedBy?: string;
-  resolvedAt?: string;
-}
+import { monitoringService, type SystemLog } from '@/lib/services/monitoring-service';
 
 interface UseSocketReturn {
   isConnected: boolean;
@@ -31,27 +18,29 @@ export function useSocket(): UseSocketReturn {
 
   const pollForNewLogs = useCallback(async () => {
     try {
-      const params: Record<string, any> = {
+      const logsResponse = await monitoringService.getSystemLogs({
         limit: 10,
         resolved: false,
-      };
+        startDate: lastTimestampRef.current ?? undefined,
+      });
 
-      if (lastTimestampRef.current) {
-        params.startDate = lastTimestampRef.current;
-      }
-
-      const response = await apiClient.getSystemLogs(params);
-      const logs = response.data?.logs || [];
+      const logs = logsResponse.logs;
 
       if (logs.length > 0) {
         const newestTimestamp = logs[0]?.timestamp;
         if (newestTimestamp && newestTimestamp !== lastTimestampRef.current) {
           const newEntries = lastTimestampRef.current
-            ? logs.filter((log: SystemLog) => new Date(log.timestamp) > new Date(lastTimestampRef.current!))
+            ? logs.filter((log) => {
+                if (!log.timestamp || !lastTimestampRef.current) {
+                  return false;
+                }
+
+                return new Date(log.timestamp) > new Date(lastTimestampRef.current);
+              })
             : [];
 
           if (newEntries.length > 0) {
-            setNewLogs(prev => [...newEntries, ...prev].slice(0, 100));
+            setNewLogs((previous) => [...newEntries, ...previous].slice(0, 100));
           }
 
           lastTimestampRef.current = newestTimestamp;
@@ -59,18 +48,19 @@ export function useSocket(): UseSocketReturn {
       }
 
       setIsConnected(true);
-    } catch (error) {
-      console.error('Failed to poll for new logs:', error);
+    } catch (caught) {
+      console.error('Failed to poll for new logs:', caught);
       setIsConnected(false);
     }
   }, []);
 
   const startLogStream = useCallback(() => {
-    if (isStreaming) return;
+    if (isStreaming) {
+      return;
+    }
 
     setIsStreaming(true);
     pollForNewLogs();
-
     intervalRef.current = window.setInterval(pollForNewLogs, 5000);
   }, [isStreaming, pollForNewLogs]);
 

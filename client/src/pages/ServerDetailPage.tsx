@@ -6,9 +6,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@modl
 import { Badge } from '@modl-gg/shared-web/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@modl-gg/shared-web/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth';
-import { apiClient } from '@/lib/api';
+import {
+  serversService,
+  type AdminServerDetails,
+  type ServerStats,
+} from '@/lib/services/servers-service';
 import { formatDate, formatDateRelative, formatBytes } from '@/lib/utils';
-import { 
+import {
   ArrowLeft,
   Server,
   Globe,
@@ -38,35 +42,6 @@ import {
 } from '@modl-gg/shared-web/components/ui/alert-dialog';
 import { EditServerModal } from '@/components/EditServerModal';
 
-interface ServerDetails {
-  _id: string;
-  serverName: string;
-  customDomain: string;
-  adminEmail: string;
-  plan: 'free' | 'premium';
-  emailVerified: boolean;
-  provisioningStatus: 'pending' | 'in-progress' | 'completed' | 'failed';
-  databaseName: string;
-  createdAt: string;
-  updatedAt: string;
-  customDomain_override?: string;
-  customDomain_status?: 'pending' | 'active' | 'error' | 'verifying';
-  customDomain_lastChecked?: string;
-  customDomain_error?: string;
-  stripe_customer_id?: string;
-  stripe_subscription_id?: string;
-  subscription_status?: 'active' | 'canceled' | 'past_due' | 'inactive';
-  current_period_end?: string;
-}
-
-interface ServerStats {
-  totalPlayers: number;
-  totalTickets: number;
-  totalLogs: number;
-  lastActivity: string;
-  databaseSize: number;
-}
-
 export default function ServerDetailPage() {
   const { id } = useParams();
   const { logout } = useAuth();
@@ -75,28 +50,22 @@ export default function ServerDetailPage() {
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
 
-  const isValidId = id && id !== 'undefined' && id !== 'null';
+  const isValidId = Boolean(id && id !== 'undefined' && id !== 'null');
 
-  const { data: server, isLoading, error } = useQuery<ServerDetails>({
+  const { data: server, isLoading, error } = useQuery<AdminServerDetails>({
     queryKey: ['server', id],
-    queryFn: async () => {
-      const response = await apiClient.getServer(id!);
-      return response.data;
-    },
+    queryFn: () => serversService.getServer(id!),
     enabled: isValidId,
   });
 
   const { data: stats } = useQuery<ServerStats>({
     queryKey: ['server-stats', id],
-    queryFn: async () => {
-      const response = await apiClient.getServerStats(id!);
-      return response.data;
-    },
+    queryFn: () => serversService.getServerStats(id!),
     enabled: isValidId,
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (serverId: string) => apiClient.deleteServer(serverId),
+    mutationFn: (serverId: string) => serversService.deleteServer(serverId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['servers'] });
       navigate('/servers');
@@ -108,7 +77,7 @@ export default function ServerDetailPage() {
   });
 
   const resetDatabaseMutation = useMutation({
-    mutationFn: (serverId: string) => apiClient.resetDatabase(serverId),
+    mutationFn: (serverId: string) => serversService.resetDatabase(serverId),
     onSuccess: () => {
       // You might want to show a toast notification here
       console.log('Server reset to provisioning state successfully');
@@ -121,7 +90,7 @@ export default function ServerDetailPage() {
   });
 
   const exportDataMutation = useMutation({
-    mutationFn: (serverId: string) => apiClient.exportData(serverId),
+    mutationFn: (serverId: string) => serversService.exportData(serverId),
     onSuccess: () => {
       console.log('Data export initiated');
     },
@@ -131,20 +100,20 @@ export default function ServerDetailPage() {
   });
 
   const handleDeleteServer = () => {
-    if (server?._id) {
-      deleteMutation.mutate(server._id);
+    if (server?.id) {
+      deleteMutation.mutate(server.id);
     }
   };
 
   const handleResetDatabase = () => {
-    if (server?._id) {
-      resetDatabaseMutation.mutate(server._id);
+    if (server?.id) {
+      resetDatabaseMutation.mutate(server.id);
     }
   };
 
   const handleExportData = () => {
-    if (server?._id) {
-      exportDataMutation.mutate(server._id);
+    if (server?.id) {
+      exportDataMutation.mutate(server.id);
     }
   };
 
@@ -357,11 +326,11 @@ export default function ServerDetailPage() {
                     </div>
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Created</label>
-                      <p className="font-medium">{formatDate(server.createdAt)}</p>
+                      <p className="font-medium">{formatDate(server.createdAt ?? '')}</p>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Last Updated</label>
-                      <p className="font-medium">{formatDate(server.updatedAt)}</p>
+                      <p className="font-medium">{formatDate(server.updatedAt ?? '')}</p>
                     </div>
                   </div>
                 </div>
@@ -383,19 +352,19 @@ export default function ServerDetailPage() {
                     <p className="font-medium">{server.customDomain}.modl.gg</p>
                   </div>
                   
-                  {server.customDomain_override && (
+                  {server.customDomainOverride && (
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Custom Domain</label>
                       <div className="flex items-center space-x-2">
-                        <p className="font-medium">{server.customDomain_override}</p>
-                        {getDomainStatusBadge(server.customDomain_status)}
+                        <p className="font-medium">{server.customDomainOverride}</p>
+                        {getDomainStatusBadge(server.customDomainStatus)}
                       </div>
-                      {server.customDomain_error && (
-                        <p className="text-sm text-red-600 dark:text-red-400 mt-1">{server.customDomain_error}</p>
+                      {server.customDomainError && (
+                        <p className="text-sm text-red-600 dark:text-red-400 mt-1">{server.customDomainError}</p>
                       )}
-                      {server.customDomain_lastChecked && (
+                      {server.customDomainLastChecked && (
                         <p className="text-xs text-muted-foreground mt-1">
-                          Last checked: {formatDateRelative(server.customDomain_lastChecked)}
+                          Last checked: {formatDateRelative(server.customDomainLastChecked)}
                         </p>
                       )}
                     </div>
@@ -514,35 +483,35 @@ export default function ServerDetailPage() {
                     <div>{getPlanBadge(server.plan)}</div>
                   </div>
                   
-                  {server.stripe_customer_id && (
+                  {server.stripeCustomerId && (
                     <>
                       <div>
                         <label className="text-sm font-medium text-muted-foreground">Customer ID</label>
-                        <p className="font-mono text-sm">{server.stripe_customer_id}</p>
+                        <p className="font-mono text-sm">{server.stripeCustomerId}</p>
                       </div>
                       
-                      {server.stripe_subscription_id && (
+                      {server.stripeSubscriptionId && (
                         <div>
                           <label className="text-sm font-medium text-muted-foreground">Subscription ID</label>
-                          <p className="font-mono text-sm">{server.stripe_subscription_id}</p>
+                          <p className="font-mono text-sm">{server.stripeSubscriptionId}</p>
                         </div>
                       )}
                       
-                      {server.subscription_status && (
+                      {server.subscriptionStatus && (
                         <div>
                           <label className="text-sm font-medium text-muted-foreground">Subscription Status</label>
                           <div>
-                            <Badge variant={server.subscription_status === 'active' ? 'default' : 'secondary'}>
-                              {server.subscription_status}
+                            <Badge variant={server.subscriptionStatus === 'active' ? 'default' : 'secondary'}>
+                              {server.subscriptionStatus}
                             </Badge>
                           </div>
                         </div>
                       )}
                       
-                      {server.current_period_end && (
+                      {server.currentPeriodEnd && (
                         <div>
                           <label className="text-sm font-medium text-muted-foreground">Current Period End</label>
-                          <p className="font-medium">{formatDate(server.current_period_end)}</p>
+                          <p className="font-medium">{formatDate(server.currentPeriodEnd)}</p>
                         </div>
                       )}
                     </>

@@ -120,7 +120,7 @@ export default function DashboardPage() {
               {lastUpdated && (
                 <div className="flex items-center text-sm text-muted-foreground">
                   <Clock className="h-4 w-4 mr-1" />
-                  Last updated {formatDateRelative(lastUpdated)}
+                  Last updated {formatDateRelative(new Date(lastUpdated))}
                 </div>
               )}
               {isLoading && (
