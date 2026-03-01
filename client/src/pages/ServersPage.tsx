@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@modl-gg/shared-web/components/ui/card';
@@ -20,7 +20,6 @@ import {
   PaginationLink,
   PaginationNext,
   PaginationPrevious,
-  PaginationEllipsis,
 } from '@modl-gg/shared-web/components/ui/pagination';
 import {
   Select,
@@ -29,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@modl-gg/shared-web/components/ui/select';
-import { apiClient } from '@/lib/api';
+import { serversService, type AdminServerListItem } from '@/lib/services/servers-service';
 import { formatDate } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import Logo from '@/components/Logo';
@@ -37,8 +36,6 @@ import {
   Server,
   Search,
   Plus,
-  Filter,
-  MoreHorizontal,
   LogOut,
   Eye,
   Edit,
@@ -47,22 +44,6 @@ import {
   ChevronUp,
   ChevronDown
 } from 'lucide-react';
-
-interface ModlServer {
-  _id: string;
-  serverName: string;
-  customDomain: string;
-  adminEmail: string;
-  plan: 'free' | 'premium';
-  emailVerified: boolean;
-  provisioningStatus: 'pending' | 'in-progress' | 'completed' | 'failed';
-  createdAt: string;
-  updatedAt: string;
-  userCount?: number;
-  ticketCount?: number;
-  region?: string;
-  lastActivityAt?: string;
-}
 
 type SortField = 'serverName' | 'customDomain' | 'adminEmail' | 'plan' | 'createdAt' | 'userCount' | 'lastActivityAt';
 type SortDirection = 'asc' | 'desc';
@@ -97,7 +78,7 @@ export default function ServersPage() {
       order: sortDirection
     }],
     queryFn: async () => {
-      const response = await apiClient.getServers({
+      return serversService.getServers({
         search: searchTerm || undefined,
         plan: selectedPlan !== 'all' ? selectedPlan : undefined,
         status: selectedStatus !== 'all' ? selectedStatus : undefined,
@@ -106,7 +87,6 @@ export default function ServersPage() {
         sort: sortField,
         order: sortDirection,
       });
-      return response.data;
     },
   });
 
@@ -134,7 +114,7 @@ export default function ServersPage() {
       <ChevronDown className="w-4 h-4 text-primary" />;
   };
 
-  const getStatusBadge = (server: ModlServer) => {
+  const getStatusBadge = (server: AdminServerListItem) => {
     if (!server.emailVerified) {
       return <Badge variant="warning">Unverified</Badge>;
     }
@@ -432,12 +412,12 @@ export default function ServersPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {sortedServers.map((server: ModlServer) => (
-                          <TableRow key={server._id} className="hover:bg-muted/30 transition-colors">
+                        {sortedServers.map((server: AdminServerListItem) => (
+                          <TableRow key={server.id} className="hover:bg-muted/30 transition-colors">
                             <TableCell>
                               <div className="space-y-1">
                                 <div className="font-medium">
-                                  <Link href={`/servers/${server._id}`} className="hover:text-primary transition-colors">
+                                  <Link href={`/servers/${server.id}`} className="hover:text-primary transition-colors">
                                     {server.serverName}
                                   </Link>
                                 </div>
@@ -466,13 +446,13 @@ export default function ServersPage() {
                               </div>
                             </TableCell>
                             <TableCell className="hidden xl:table-cell">
-                              <div className="text-sm text-muted-foreground">
-                                {formatDate(server.createdAt)}
+                                <div className="text-sm text-muted-foreground">
+                                {formatDate(server.createdAt ?? '')}
                               </div>
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex items-center justify-end space-x-1">
-                                <Link href={`/servers/${server._id}`}>
+                                <Link href={`/servers/${server.id}`}>
                                   <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                                     <Eye className="w-4 h-4" />
                                   </Button>
@@ -501,6 +481,7 @@ export default function ServersPage() {
                         <PaginationContent>
                           <PaginationItem>
                             <PaginationPrevious 
+                              size="default"
                               href="#"
                               onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
                                 e.preventDefault();
@@ -527,6 +508,7 @@ export default function ServersPage() {
                             return (
                               <PaginationItem key={pageNum}>
                                 <PaginationLink
+                                  size="default"
                                   href="#"
                                   onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
                                     e.preventDefault();
@@ -542,6 +524,7 @@ export default function ServersPage() {
                           
                           <PaginationItem>
                             <PaginationNext 
+                              size="default"
                               href="#"
                               onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
                                 e.preventDefault();

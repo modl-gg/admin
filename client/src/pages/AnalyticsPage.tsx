@@ -6,8 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@modl
 import { Badge } from '@modl-gg/shared-web/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@modl-gg/shared-web/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth';
-import { apiClient } from '@/lib/api';
-import { formatDate, formatDateRelative } from '@/lib/utils';
+import { analyticsService, type AnalyticsData, type AnalyticsRange } from '@/lib/services/analytics-service';
 import {
   BarChart,
   Bar,
@@ -31,77 +30,31 @@ import {
   TrendingDown,
   Users,
   Server,
-  Calendar,
-  Download,
   FileText,
   BarChart3,
-  PieChart as PieChartIcon,
   Activity,
   LogOut,
   Clock,
   Globe,
-  Database,
   AlertTriangle
 } from 'lucide-react';
-
-interface AnalyticsData {
-  overview: {
-    totalServers: number;
-    activeServers: number;
-    totalUsers: number;
-    totalTickets: number;
-    serverGrowthRate: string;
-    userGrowthRate: string;
-    avgPlayersPerServer: string;
-    avgTicketsPerServer: string;
-  };
-  serverMetrics: {
-    byPlan: Array<{ name: string; value: number; percentage: number }>;
-    byStatus: Array<{ name: string; value: number; color: string }>;
-    registrationTrend: Array<{ date: string; servers: number; cumulative: number }>;
-  };
-  usageStatistics: {
-    topServersByUsers: Array<{ serverName: string; userCount: number; customDomain: string }>;
-    serverActivity: Array<{ date: string; activeServers: number; newRegistrations: number }>;
-    geographicDistribution: Array<{ region: string; servers: number; percentage: number }>;
-    playerGrowth: Array<{ date: string; players: number; cumulative: number }>;
-    ticketVolume: Array<{ date: string; tickets: number }>;
-  };
-  systemHealth: {
-    errorRates: Array<{ date: string; errors: number; warnings: number; critical: number }>;
-    uptime?: Array<{ service: string; uptime: number; status: string }>;
-    performanceMetrics?: Array<{ metric: string; value: number; trend: 'up' | 'down' | 'stable' }>;
-  };
-}
 
 const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7c7c', '#8dd1e1', '#d084d0'];
 
 export default function AnalyticsPage() {
   const { logout } = useAuth();
-  const [dateRange, setDateRange] = useState('30d');
+  const [dateRange, setDateRange] = useState<AnalyticsRange>('30d');
   const [activeTab, setActiveTab] = useState('overview');
 
   const { data: analytics, isLoading, error } = useQuery<AnalyticsData>({
     queryKey: ['analytics', dateRange],
-    queryFn: async () => {
-      const response = await apiClient.getAnalytics(dateRange);
-      return response.data;
-    },
+    queryFn: () => analyticsService.getAnalytics(dateRange),
     refetchInterval: 5 * 60 * 1000, // Refresh every 5 minutes
   });
 
-  const handleExportData = async (type: 'csv' | 'json' | 'pdf') => {
-    try {
-      await apiClient.exportAnalytics(type, dateRange);
-      // This would trigger a download
-    } catch (error) {
-      console.error('Export failed:', error);
-    }
-  };
-
   const generateReport = async () => {
     try {
-      await apiClient.generateReport({
+      await analyticsService.generateReport({
         type: 'comprehensive',
         dateRange,
         sections: ['overview', 'servers', 'usage', 'health']
@@ -183,7 +136,7 @@ export default function AnalyticsPage() {
               </div>
               <select
                 value={dateRange}
-                onChange={(e) => setDateRange(e.target.value)}
+                onChange={(e) => setDateRange(e.target.value as AnalyticsRange)}
                 className="px-3 py-2 border border-input rounded-md text-sm"
               >
                 <option value="7d">Last 7 days</option>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@modl-gg/shared-web/components/ui/button';
@@ -9,7 +9,11 @@ import { Switch } from '@modl-gg/shared-web/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@modl-gg/shared-web/components/ui/tabs';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@modl-gg/shared-web/components/ui/alert-dialog';
 import { useAuth } from '@/hooks/useAuth';
-import { apiClient } from '@/lib/api';
+import {
+  systemService,
+  type SystemConfig,
+  type MaintenanceStatus,
+} from '@/lib/services/system-service';
 import { 
   ArrowLeft,
   Settings,
@@ -32,64 +36,6 @@ import {
   AlertCircle
 } from 'lucide-react';
 
-interface SystemConfig {
-  general: {
-    systemName: string;
-    adminEmail: string;
-    timezone: string;
-    defaultLanguage: string;
-    maintenanceMode: boolean;
-    maintenanceMessage: string;
-  };
-  logging: {
-    pm2LoggingEnabled: boolean;
-    logRetentionDays: number;
-    maxLogSizePerDay: number;
-  };
-  security: {
-    sessionTimeout: number;
-    maxLoginAttempts: number;
-    lockoutDuration: number;
-    requireTwoFactor: boolean;
-    passwordMinLength: number;
-    passwordRequireSpecial: boolean;
-    ipWhitelist: string[];
-    corsOrigins: string[];
-  };
-  notifications: {
-    emailNotifications: boolean;
-    criticalAlerts: boolean;
-    weeklyReports: boolean;
-    maintenanceAlerts: boolean;
-    slackWebhook?: string;
-    discordWebhook?: string;
-  };
-  performance: {
-    cacheTtl: number;
-    rateLimitRequests: number;
-    rateLimitWindow: number;
-    databaseConnectionPool: number;
-    enableCompression: boolean;
-    enableCaching: boolean;
-  };
-  features: {
-    analyticsEnabled: boolean;
-    auditLoggingEnabled: boolean;
-    apiAccessEnabled: boolean;
-    bulkOperationsEnabled: boolean;
-    advancedFiltering: boolean;
-    realTimeUpdates: boolean;
-  };
-}
-
-interface MaintenanceStatus {
-  isActive: boolean;
-  message: string;
-  scheduledStart?: string;
-  scheduledEnd?: string;
-  affectedServices: string[];
-}
-
 export default function SystemConfigPage() {
   const { logout } = useAuth();
   const queryClient = useQueryClient();
@@ -105,31 +51,25 @@ export default function SystemConfigPage() {
     refetch: refetchConfig
   } = useQuery<SystemConfig>({
     queryKey: ['system-config'],
-    queryFn: async () => {
-      const response = await apiClient.getSystemConfig();
-      return response.data;
-    },
-    onSuccess: (data) => {
-      // Set local config when data is successfully fetched
-      setLocalConfig(data);
-    },
+    queryFn: () => systemService.getSystemConfig(),
     retry: 3,
     retryDelay: 1000,
   });
 
+  useEffect(() => {
+    if (systemConfig) {
+      setLocalConfig(systemConfig);
+    }
+  }, [systemConfig]);
+
   // Fetch maintenance status
   const { data: maintenanceStatus } = useQuery<MaintenanceStatus>({
     queryKey: ['maintenance-status'],
-    queryFn: async () => {
-      const response = await apiClient.getMaintenanceStatus();
-      return response.data;
-    },
+    queryFn: () => systemService.getMaintenanceStatus(),
   });
 
   const updateConfigMutation = useMutation({
-    mutationFn: async (newConfig: SystemConfig) => {
-      return apiClient.updateSystemConfig(newConfig);
-    },
+    mutationFn: (newConfig: SystemConfig) => systemService.updateSystemConfig(newConfig),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['system-config'] });
       setHasUnsavedChanges(false);
@@ -137,34 +77,31 @@ export default function SystemConfigPage() {
   });
 
   const toggleMaintenanceMutation = useMutation({
-    mutationFn: async (params: { enabled: boolean; message?: string }) => {
-      return apiClient.toggleMaintenanceMode(params);
-    },
+    mutationFn: (params: { enabled: boolean; message?: string }) => systemService.toggleMaintenanceMode(params),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['maintenance-status'] });
     },
   });
 
   const restartServiceMutation = useMutation({
-    mutationFn: async (service: string) => {
-      return apiClient.restartService(service);
-    },
+    mutationFn: (service: string) => systemService.restartService(service),
   });
 
   // Use local config for the working copy, fallback to fetched data
-  const config = localConfig || systemConfig;
+  const config: SystemConfig | null = localConfig ?? systemConfig ?? null;
 
   const handleConfigChange = (section: keyof SystemConfig, field: string, value: any) => {
     if (!config) return;
-    
-    const newConfig = {
+
+    const currentSection = (config[section] as Record<string, unknown>) ?? {};
+    const newConfig: SystemConfig = {
       ...config,
       [section]: {
-        ...(config[section] || {}),
-        [field]: value
-      }
-    };
-    
+        ...currentSection,
+        [field]: value,
+      },
+    } as SystemConfig;
+
     setLocalConfig(newConfig);
     setHasUnsavedChanges(true);
   };
@@ -199,7 +136,7 @@ export default function SystemConfigPage() {
   }
 
   // Error state
-  if (configError || (!config && !isLoading)) {
+  if (configError || !config) {
     return (
       <div className="min-h-screen bg-background">
         {/* Header */}
