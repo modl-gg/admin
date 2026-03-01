@@ -1,5 +1,10 @@
 import { requestJsonRaw } from '@/lib/api';
-import { normalizeDateValue, normalizeStringArray, unwrapEnvelope } from '@/lib/api-contracts/common';
+import {
+  normalizeDateValue,
+  normalizeStringArray,
+  unwrapEnvelope,
+  unwrapEnvelopeOptionalData,
+} from '@/lib/api-contracts/common';
 
 export interface AdminSession {
   email?: string;
@@ -42,7 +47,7 @@ export const authService = {
       body: { email },
     });
 
-    const { message } = unwrapEnvelope<unknown>(raw, 'admin auth request code');
+    const { message } = unwrapEnvelopeOptionalData<unknown>(raw, 'admin auth request code');
     return message ?? 'Verification code requested';
   },
 
@@ -67,6 +72,6 @@ export const authService = {
       method: 'POST',
     });
 
-    unwrapEnvelope<unknown>(raw, 'admin auth logout');
+    unwrapEnvelopeOptionalData<unknown>(raw, 'admin auth logout');
   },
 };

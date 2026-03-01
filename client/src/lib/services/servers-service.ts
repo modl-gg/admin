@@ -1,5 +1,10 @@
 import { requestJsonRaw } from '@/lib/api';
-import { getOptionalString, normalizeDateValue, unwrapEnvelope } from '@/lib/api-contracts/common';
+import {
+  getOptionalString,
+  normalizeDateValue,
+  unwrapEnvelope,
+  unwrapEnvelopeOptionalData,
+} from '@/lib/api-contracts/common';
 
 export type ServerPlan = 'free' | 'premium';
 export type ProvisioningStatus = 'pending' | 'in-progress' | 'completed' | 'failed';
@@ -351,7 +356,7 @@ export const serversService = {
       method: 'DELETE',
     });
 
-    unwrapEnvelope<unknown>(raw, 'admin server delete');
+    unwrapEnvelopeOptionalData<unknown>(raw, 'admin server delete');
   },
 
   async resetDatabase(id: string): Promise<string> {
@@ -359,7 +364,7 @@ export const serversService = {
       method: 'POST',
     });
 
-    const { message } = unwrapEnvelope<unknown>(raw, 'admin server reset database');
+    const { message } = unwrapEnvelopeOptionalData<unknown>(raw, 'admin server reset database');
     return message ?? 'Server reset initiated';
   },
 
@@ -368,7 +373,7 @@ export const serversService = {
       method: 'POST',
     });
 
-    const { message } = unwrapEnvelope<unknown>(raw, 'admin server export data');
+    const { message } = unwrapEnvelopeOptionalData<unknown>(raw, 'admin server export data');
     return message ?? 'Server export initiated';
   },
 };

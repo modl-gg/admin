@@ -17,10 +17,7 @@ export function isApiEnvelope<T>(value: unknown): value is ApiEnvelope<T> {
   return typeof value.success === 'boolean';
 }
 
-export function unwrapEnvelope<T>(
-  value: unknown,
-  context: string
-): { data: T; message?: string } {
+function unwrapEnvelopeBase<T>(value: unknown, context: string): ApiEnvelope<T> {
   if (!isApiEnvelope<T>(value)) {
     throw new Error(`Invalid API response shape for ${context}`);
   }
@@ -29,11 +26,29 @@ export function unwrapEnvelope<T>(
     throw new Error(value.error ?? value.message ?? `Request failed for ${context}`);
   }
 
-  if (value.data === undefined) {
+  return value;
+}
+
+export function unwrapEnvelopeOptionalData<T>(
+  value: unknown,
+  context: string
+): { data?: T; message?: string } {
+  const envelope = unwrapEnvelopeBase<T>(value, context);
+
+  return { data: envelope.data, message: envelope.message };
+}
+
+export function unwrapEnvelope<T>(
+  value: unknown,
+  context: string
+): { data: T; message?: string } {
+  const envelope = unwrapEnvelopeBase<T>(value, context);
+
+  if (envelope.data === undefined) {
     throw new Error(`Missing data payload for ${context}`);
   }
 
-  return { data: value.data, message: value.message };
+  return { data: envelope.data, message: envelope.message };
 }
 
 export function getOptionalString(value: unknown): string | undefined {

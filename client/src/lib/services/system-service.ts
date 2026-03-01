@@ -1,5 +1,5 @@
 import { requestJsonRaw } from '@/lib/api';
-import { normalizeDateValue, unwrapEnvelope } from '@/lib/api-contracts/common';
+import { normalizeDateValue, unwrapEnvelope, unwrapEnvelopeOptionalData } from '@/lib/api-contracts/common';
 
 export interface SystemConfig {
   general: {
@@ -145,7 +145,7 @@ export const systemService = {
       method: 'POST',
     });
 
-    const { message } = unwrapEnvelope<unknown>(raw, 'admin restart service');
+    const { message } = unwrapEnvelopeOptionalData<unknown>(raw, 'admin restart service');
     return message ?? 'Service restart requested';
   },
 
