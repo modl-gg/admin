@@ -1,44 +1,28 @@
-import React, { useState } from 'react';
-import { Link } from 'wouter';
-import { Button } from '@modl-gg/shared-web/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@modl-gg/shared-web/components/ui/card';
 import { Badge } from '@modl-gg/shared-web/components/ui/badge';
-import { Input } from '@modl-gg/shared-web/components/ui/input';
-import { useAuth } from '@/hooks/useAuth';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@modl-gg/shared-web/components/ui/tabs';
 import { useRealTimeMetrics } from '@/hooks/useMonitoring';
-import { formatDateRelative } from '@/lib/utils';
 import SystemLogs from '@/components/SystemLogs';
-import { 
-  ArrowLeft,
-  Search,
-  Filter,
-  RefreshCw,
+import {
   CheckCircle,
   XCircle,
   AlertTriangle,
   AlertCircle,
-  Clock,
-  LogOut
+  Clock
 } from 'lucide-react';
 
 export default function MonitoringPage() {
-  const { logout } = useAuth();
-  const [filters, setFilters] = useState({ page: 1 });
-  const [showFilters, setShowFilters] = useState(false);
-  
   const { metrics, health } = useRealTimeMetrics();
 
-  const getStatusIcon = (level: string, resolved: boolean) => {
-    if (resolved) {
-      return <CheckCircle className="h-4 w-4 text-green-500 dark:text-green-400" />;
-    }
-    
-    switch (level) {
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'healthy':
+        return <CheckCircle className="h-4 w-4 text-green-500 dark:text-green-400" />;
       case 'critical':
         return <XCircle className="h-4 w-4 text-red-500 dark:text-red-400" />;
       case 'error':
         return <AlertCircle className="h-4 w-4 text-orange-500 dark:text-orange-400" />;
-      case 'warning':
+      case 'degraded':
         return <AlertTriangle className="h-4 w-4 text-yellow-500 dark:text-yellow-400" />;
       default:
         return <Clock className="h-4 w-4 text-blue-500 dark:text-blue-400" />;
@@ -46,32 +30,16 @@ export default function MonitoringPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="bg-card border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center">
-              <Link href="/">
-                <Button variant="ghost" size="sm" className="mr-4">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back to Dashboard
-                </Button>
-              </Link>
-              <h1 className="text-3xl font-bold text-foreground">System Monitoring</h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Button onClick={logout} variant="outline">
-                <LogOut className="h-4 w-4 mr-2" />
-                Logout
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <h1 className="text-3xl font-bold mb-6">System Monitoring</h1>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="space-y-8">
+      <Tabs defaultValue="health" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="health">Health</TabsTrigger>
+          <TabsTrigger value="logs">Logs</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="health" className="space-y-6">
           {/* Metrics Overview */}
           {metrics && (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -84,7 +52,7 @@ export default function MonitoringPage() {
                   <p className="text-xs text-muted-foreground">Last 24 hours</p>
                 </CardContent>
               </Card>
-              
+
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium">Critical Issues</CardTitle>
@@ -94,7 +62,7 @@ export default function MonitoringPage() {
                   <p className="text-xs text-muted-foreground">Unresolved</p>
                 </CardContent>
               </Card>
-              
+
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium">Error Count</CardTitle>
@@ -104,7 +72,7 @@ export default function MonitoringPage() {
                   <p className="text-xs text-muted-foreground">Unresolved</p>
                 </CardContent>
               </Card>
-              
+
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium">System Health</CardTitle>
@@ -129,7 +97,7 @@ export default function MonitoringPage() {
                   {health.checks.map((check, index) => (
                     <div key={index} className="flex items-center justify-between p-3 rounded-lg border">
                       <div className="flex items-center space-x-3">
-                        {getStatusIcon(check.status, false)}
+                        {getStatusIcon(check.status)}
                         <div>
                           <p className="font-medium">{check.name}</p>
                           <p className="text-sm text-muted-foreground">{check.message}</p>
@@ -151,8 +119,9 @@ export default function MonitoringPage() {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
 
-          {/* System Logs Management */}
+        <TabsContent value="logs">
           <Card>
             <CardHeader>
               <CardTitle>System Logs</CardTitle>
@@ -164,8 +133,8 @@ export default function MonitoringPage() {
               <SystemLogs />
             </CardContent>
           </Card>
-        </div>
-      </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
-} 
+}

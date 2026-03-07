@@ -30,13 +30,10 @@ import {
 } from '@modl-gg/shared-web/components/ui/select';
 import { serversService, type AdminServerListItem } from '@/lib/services/servers-service';
 import { formatDate } from '@/lib/utils';
-import { useAuth } from '@/hooks/useAuth';
-import Logo from '@/components/Logo';
 import {
   Server,
   Search,
   Plus,
-  LogOut,
   Eye,
   Edit,
   Trash2,
@@ -49,7 +46,6 @@ type SortField = 'serverName' | 'customDomain' | 'adminEmail' | 'plan' | 'create
 type SortDirection = 'asc' | 'desc';
 
 export default function ServersPage() {
-  const { session, logout } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPlan, setSelectedPlan] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
@@ -149,60 +145,7 @@ export default function ServersPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Logo />
-            <div className="flex items-center space-x-4">
-              <div className="text-sm text-muted-foreground">
-                {session?.email}
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => logout()}>
-                <LogOut className="w-4 h-4 mr-2" />
-                Logout
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Navigation */}
-      <nav className="border-b bg-muted/30">
-        <div className="container mx-auto px-4">
-          <div className="flex space-x-6">
-            <Link href="/">
-              <a className="px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground">
-                Dashboard
-              </a>
-            </Link>
-            <Link href="/servers">
-              <a className="px-3 py-2 text-sm font-medium border-b-2 border-primary text-primary">
-                Servers
-              </a>
-            </Link>
-            <Link href="/monitoring">
-              <a className="px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground">
-                Monitoring
-              </a>
-            </Link>
-            <Link href="/analytics">
-              <a className="px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground">
-                Analytics
-              </a>
-            </Link>
-            <Link href="/system">
-              <a className="px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground">
-                System
-              </a>
-            </Link>
-          </div>
-        </div>
-      </nav>
-
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8">
         <div className="space-y-6">
           {/* Page Header */}
           <div className="flex items-center justify-between">
@@ -557,7 +500,6 @@ export default function ServersPage() {
             </CardContent>
           </Card>
         </div>
-      </main>
     </div>
   );
 } 
