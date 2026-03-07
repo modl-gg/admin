@@ -104,7 +104,7 @@ export default function AnalyticsPage() {
 
   const activityData = (activitySnapshots ?? []).map(s => ({
     ...s,
-    date: new Date(s.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    date: new Date(s.date).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
   }));
 
   const dateRangeSelector = (
@@ -280,8 +280,8 @@ export default function AnalyticsPage() {
         <TabsContent value="activity" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Active Servers &amp; Players Over Time</CardTitle>
-              <CardDescription>Hourly snapshots of platform activity</CardDescription>
+              <CardTitle>Online Servers &amp; Players Over Time</CardTitle>
+              <CardDescription>5-minute snapshots of platform activity</CardDescription>
             </CardHeader>
             <CardContent>
               {activityData.length === 0 ? (
@@ -302,7 +302,7 @@ export default function AnalyticsPage() {
                       stroke="#8884d8"
                       fill="#8884d8"
                       fillOpacity={0.4}
-                      name="Active Servers"
+                      name="Online Servers"
                     />
                     <Area
                       yAxisId="right"
