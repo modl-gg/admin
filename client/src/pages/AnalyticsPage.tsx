@@ -307,11 +307,11 @@ export default function AnalyticsPage() {
                     <Area
                       yAxisId="right"
                       type="monotone"
-                      dataKey="totalPlayers"
+                      dataKey="onlinePlayers"
                       stroke="#82ca9d"
                       fill="#82ca9d"
                       fillOpacity={0.4}
-                      name="Total Players"
+                      name="Online Players"
                     />
                   </AreaChart>
                 </ResponsiveContainer>

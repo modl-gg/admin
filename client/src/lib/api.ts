@@ -3,6 +3,7 @@ import { MODL } from '@modl-gg/shared-web';
 export interface ActivitySnapshot {
   date: string;
   activeServers: number;
+  onlinePlayers: number;
   totalPlayers: number;
   totalServers: number;
 }
