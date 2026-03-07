@@ -8,7 +8,9 @@ import {
   XCircle,
   AlertTriangle,
   AlertCircle,
-  Clock
+  Clock,
+  Users,
+  Wifi
 } from 'lucide-react';
 
 export default function MonitoringPage() {
@@ -42,7 +44,7 @@ export default function MonitoringPage() {
         <TabsContent value="health" className="space-y-6">
           {/* Metrics Overview */}
           {metrics && (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium">Total Logs (24h)</CardTitle>
@@ -80,6 +82,32 @@ export default function MonitoringPage() {
                 <CardContent>
                   <div className="text-2xl font-bold">{metrics.systemHealth.score}%</div>
                   <p className="text-xs text-muted-foreground capitalize">{metrics.systemHealth.status}</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <Wifi className="h-4 w-4" />
+                    Online Servers
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-600 dark:text-green-400">{metrics.servers.concurrentServers}</div>
+                  <p className="text-xs text-muted-foreground">Syncing in last 5 min</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Online Players
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-600 dark:text-green-400">{metrics.servers.concurrentPlayers}</div>
+                  <p className="text-xs text-muted-foreground">Currently in-game</p>
                 </CardContent>
               </Card>
             </div>

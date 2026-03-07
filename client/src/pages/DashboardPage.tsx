@@ -13,7 +13,9 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  Users,
+  Wifi
 } from 'lucide-react';
 
 export default function DashboardPage() {
@@ -75,7 +77,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Servers</CardTitle>
@@ -127,6 +129,32 @@ export default function DashboardPage() {
               <p className="text-xs text-muted-foreground capitalize">
                 {metrics?.systemHealth.status || 'Unknown'}
               </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Online Servers</CardTitle>
+              <Wifi className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                {metrics?.servers.concurrentServers || 0}
+              </div>
+              <p className="text-xs text-muted-foreground">Syncing in last 5 min</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Online Players</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                {metrics?.servers.concurrentPlayers || 0}
+              </div>
+              <p className="text-xs text-muted-foreground">Currently in-game</p>
             </CardContent>
           </Card>
         </div>
