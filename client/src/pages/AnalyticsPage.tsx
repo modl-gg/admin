@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from '@modl-gg/shared-web/components/ui/select';
 import { apiClient, ActivitySnapshot } from '@/lib/api';
+import { analyticsService, AnalyticsData } from '@/lib/services/analytics-service';
 import {
   BarChart,
   Bar,
@@ -37,34 +38,6 @@ import {
   AlertTriangle
 } from 'lucide-react';
 
-interface AnalyticsData {
-  overview: {
-    totalServers: number;
-    activeServers: number;
-    totalUsers: number;
-    totalTickets: number;
-    serverGrowthRate: string;
-    userGrowthRate: string;
-    avgPlayersPerServer: string;
-    avgTicketsPerServer: string;
-  };
-  serverMetrics: {
-    byPlan: Array<{ name: string; value: number; percentage: number }>;
-    byStatus: Array<{ name: string; value: number; color: string }>;
-    registrationTrend: Array<{ date: string; servers: number; cumulative: number }>;
-  };
-  usageStatistics: {
-    topServersByUsers: Array<{ serverName: string; userCount: number; customDomain: string }>;
-    serverActivity: Array<{ date: string; activeServers: number; newRegistrations: number }>;
-    geographicDistribution: Array<{ region: string; servers: number; percentage: number }>;
-    playerGrowth: Array<{ date: string; players: number; cumulative: number }>;
-    ticketVolume: Array<{ date: string; tickets: number }>;
-  };
-  systemHealth: {
-    errorRates: Array<{ date: string; errors: number; warnings: number; critical: number }>;
-  };
-}
-
 
 const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7c7c', '#8dd1e1', '#d084d0'];
 
@@ -83,10 +56,7 @@ export default function AnalyticsPage() {
 
   const { data: analytics, isLoading, error } = useQuery<AnalyticsData>({
     queryKey: ['analytics', dateRange],
-    queryFn: async () => {
-      const response = await apiClient.getAnalytics(dateRange);
-      return response.data;
-    },
+    queryFn: () => analyticsService.getAnalytics(dateRange as Parameters<typeof analyticsService.getAnalytics>[0]),
     refetchInterval: 5 * 60 * 1000,
   });
 
