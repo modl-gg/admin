@@ -1,12 +1,16 @@
 import { useState, useMemo } from 'react';
-import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
-import { Button } from '@modl-gg/shared-web/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@modl-gg/shared-web/components/ui/card';
 import { Badge } from '@modl-gg/shared-web/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@modl-gg/shared-web/components/ui/tabs';
-import { useAuth } from '@/hooks/useAuth';
-import { analyticsService, type AnalyticsData, type AnalyticsRange } from '@/lib/services/analytics-service';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@modl-gg/shared-web/components/ui/select';
+import { apiClient, ActivitySnapshot } from '@/lib/api';
 import {
   BarChart,
   Bar,
@@ -23,7 +27,6 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import {
-  ArrowLeft,
   TrendingUp,
   TrendingDown,
   Users,
@@ -31,22 +34,69 @@ import {
   FileText,
   BarChart3,
   Activity,
-  LogOut,
-  Clock,
   AlertTriangle
 } from 'lucide-react';
 
+interface AnalyticsData {
+  overview: {
+    totalServers: number;
+    activeServers: number;
+    totalUsers: number;
+    totalTickets: number;
+    serverGrowthRate: string;
+    userGrowthRate: string;
+    avgPlayersPerServer: string;
+    avgTicketsPerServer: string;
+  };
+  serverMetrics: {
+    byPlan: Array<{ name: string; value: number; percentage: number }>;
+    byStatus: Array<{ name: string; value: number; color: string }>;
+    registrationTrend: Array<{ date: string; servers: number; cumulative: number }>;
+  };
+  usageStatistics: {
+    topServersByUsers: Array<{ serverName: string; userCount: number; customDomain: string }>;
+    serverActivity: Array<{ date: string; activeServers: number; newRegistrations: number }>;
+    geographicDistribution: Array<{ region: string; servers: number; percentage: number }>;
+    playerGrowth: Array<{ date: string; players: number; cumulative: number }>;
+    ticketVolume: Array<{ date: string; tickets: number }>;
+  };
+  systemHealth: {
+    errorRates: Array<{ date: string; errors: number; warnings: number; critical: number }>;
+  };
+}
+
+
 const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7c7c', '#8dd1e1', '#d084d0'];
 
+function EmptyChart({ message }: { message: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center h-[300px] text-muted-foreground">
+      <BarChart3 className="h-12 w-12 mb-4 opacity-30" />
+      <p className="text-sm">{message}</p>
+    </div>
+  );
+}
+
 export default function AnalyticsPage() {
-  const { logout } = useAuth();
-  const [dateRange, setDateRange] = useState<AnalyticsRange>('30d');
+  const [dateRange, setDateRange] = useState('30d');
   const [activeTab, setActiveTab] = useState('overview');
 
   const { data: analytics, isLoading, error } = useQuery<AnalyticsData>({
     queryKey: ['analytics', dateRange],
-    queryFn: () => analyticsService.getAnalytics(dateRange),
-    refetchInterval: 5 * 60 * 1000, // Refresh every 5 minutes
+    queryFn: async () => {
+      const response = await apiClient.getAnalytics(dateRange);
+      return response.data;
+    },
+    refetchInterval: 5 * 60 * 1000,
+  });
+
+  const { data: activityData = [] } = useQuery<ActivitySnapshot[]>({
+    queryKey: ['activitySnapshots', dateRange],
+    queryFn: async () => {
+      const response = await apiClient.getActivitySnapshots(dateRange);
+      return response.data ?? [];
+    },
+    refetchInterval: 5 * 60 * 1000,
   });
 
   const serverDistributions = useMemo(() => {
@@ -69,228 +119,155 @@ export default function AnalyticsPage() {
     };
   }, [analytics]);
 
-  const generateReport = async () => {
-    try {
-      await analyticsService.generateReport({
-        type: 'comprehensive',
-        dateRange,
-        sections: ['overview', 'servers', 'usage', 'health']
-      });
-    } catch (error) {
-      console.error('Report generation failed:', error);
-    }
-  };
-
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading analytics...</p>
-        </div>
+      <div className="flex items-center justify-center h-64">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
 
   if (error || !analytics) {
     return (
-      <div className="min-h-screen bg-background">
-        <header className="bg-card border-b">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center py-6">
-              <Link href="/">
-                <Button variant="ghost" size="sm">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back to Dashboard
-                </Button>
-              </Link>
-              <Button onClick={logout} variant="outline">
-                <LogOut className="h-4 w-4 mr-2" />
-                Logout
-              </Button>
-            </div>
-          </div>
-        </header>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <Card>
-            <CardContent className="text-center py-8">
-              <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-red-500 dark:text-red-400" />
-              <h3 className="text-lg font-semibold mb-2">Failed to Load Analytics</h3>
-              <p className="text-muted-foreground">Unable to fetch analytics data.</p>
-            </CardContent>
-          </Card>
-        </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <Card>
+          <CardContent className="text-center py-8">
+            <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-red-500 dark:text-red-400" />
+            <h3 className="text-lg font-semibold mb-2">Failed to Load Analytics</h3>
+            <p className="text-muted-foreground">Unable to fetch analytics data.</p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="bg-card border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center">
-              <Link href="/">
-                <Button variant="ghost" size="sm" className="mr-4">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back to Dashboard
-                </Button>
-              </Link>
-              <div className="flex items-center space-x-3">
-                <BarChart3 className="h-6 w-6 text-muted-foreground" />
-                <div>
-                  <h1 className="text-2xl font-bold text-foreground">Analytics & Reports</h1>
-                  <p className="text-sm text-muted-foreground">
-                    System insights and data analysis {isLoading && <span className="inline-flex items-center"><Clock className="h-3 w-3 ml-2 animate-spin" /></span>}
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center space-x-3">
-              <div className="text-xs text-muted-foreground">
-                Auto-refreshes every 5 min
-              </div>
-              <select
-                value={dateRange}
-                onChange={(e) => setDateRange(e.target.value as AnalyticsRange)}
-                className="px-3 py-2 border border-input rounded-md text-sm"
-              >
-                <option value="7d">Last 7 days</option>
-                <option value="30d">Last 30 days</option>
-                <option value="90d">Last 90 days</option>
-                <option value="1y">Last year</option>
-              </select>
-              <Button variant="outline" size="sm" onClick={generateReport}>
-                <FileText className="h-4 w-4 mr-2" />
-                Generate Report
-              </Button>
-              <Button onClick={logout} variant="outline">
-                <LogOut className="h-4 w-4 mr-2" />
-                Logout
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold">Analytics & Reports</h1>
+        <Select value={dateRange} onValueChange={setDateRange}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Date range" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="7d">Last 7 days</SelectItem>
+            <SelectItem value="30d">Last 30 days</SelectItem>
+            <SelectItem value="90d">Last 90 days</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="servers">Server Analytics</TabsTrigger>
-            <TabsTrigger value="usage">Usage Statistics</TabsTrigger>
-            <TabsTrigger value="health">System Health</TabsTrigger>
-          </TabsList>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="activity">Activity</TabsTrigger>
+          <TabsTrigger value="servers">Servers</TabsTrigger>
+          <TabsTrigger value="usage">Usage</TabsTrigger>
+          <TabsTrigger value="health">Health</TabsTrigger>
+        </TabsList>
 
-          <TabsContent value="overview" className="space-y-6">
-            {/* Key Metrics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium flex items-center">
-                    <Server className="h-4 w-4 mr-2" />
-                    Total Servers
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{analytics.overview.totalServers ?? 0}</div>
-                  <div className="flex items-center text-xs text-muted-foreground">
-                    {parseFloat(analytics.overview.serverGrowthRate) >= 0 ? (
-                      <TrendingUp className="h-3 w-3 mr-1 text-green-600 dark:text-green-400" />
-                    ) : (
-                      <TrendingDown className="h-3 w-3 mr-1 text-red-600 dark:text-red-400" />
-                    )}
-                    {analytics.overview.serverGrowthRate ?? '0'}% vs last period
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium flex items-center">
-                    <Activity className="h-4 w-4 mr-2" />
-                    Active Servers
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{analytics.overview.activeServers ?? 0}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {analytics.overview.totalServers ? ((analytics.overview.activeServers / analytics.overview.totalServers) * 100).toFixed(1) : '0'}% of total
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium flex items-center">
-                    <Users className="h-4 w-4 mr-2" />
-                    Total Users
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{(analytics.overview.totalUsers ?? 0).toLocaleString()}</div>
-                  <div className="flex items-center text-xs text-muted-foreground">
-                    {parseFloat(analytics.overview.userGrowthRate) >= 0 ? (
-                      <TrendingUp className="h-3 w-3 mr-1 text-green-600 dark:text-green-400" />
-                    ) : (
-                      <TrendingDown className="h-3 w-3 mr-1 text-red-600 dark:text-red-400" />
-                    )}
-                    {analytics.overview.userGrowthRate ?? '0'}% growth
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium flex items-center">
-                    <FileText className="h-4 w-4 mr-2" />
-                    Total Tickets
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{(analytics.overview.totalTickets ?? 0).toLocaleString()}</div>
-                  <div className="text-xs text-muted-foreground">
-                    Across all servers
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Engagement Metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Avg Players per Server</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{analytics.overview.avgPlayersPerServer}</div>
-                  <div className="text-xs text-muted-foreground">
-                    Engagement metric
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Avg Tickets per Server</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{analytics.overview.avgTicketsPerServer}</div>
-                  <div className="text-xs text-muted-foreground">
-                    Support activity
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Server Registration Trend */}
+        <TabsContent value="overview" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <Card>
-              <CardHeader>
-                <CardTitle>Server Registration Trend</CardTitle>
-                <CardDescription>Daily server registrations and cumulative growth</CardDescription>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium flex items-center">
+                  <Server className="h-4 w-4 mr-2" />
+                  Total Servers
+                </CardTitle>
               </CardHeader>
               <CardContent>
+                <div className="text-2xl font-bold">{analytics.overview.totalServers ?? 0}</div>
+                <div className="flex items-center text-xs text-muted-foreground">
+                  {parseFloat(analytics.overview.serverGrowthRate) >= 0 ? (
+                    <TrendingUp className="h-3 w-3 mr-1 text-green-600 dark:text-green-400" />
+                  ) : (
+                    <TrendingDown className="h-3 w-3 mr-1 text-red-600 dark:text-red-400" />
+                  )}
+                  {analytics.overview.serverGrowthRate ?? '0'}% vs last period
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium flex items-center">
+                  <Activity className="h-4 w-4 mr-2" />
+                  Active Servers
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{analytics.overview.activeServers ?? 0}</div>
+                <div className="text-xs text-muted-foreground">
+                  {analytics.overview.totalServers ? ((analytics.overview.activeServers / analytics.overview.totalServers) * 100).toFixed(1) : '0'}% of total
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium flex items-center">
+                  <Users className="h-4 w-4 mr-2" />
+                  Total Users
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{(analytics.overview.totalUsers ?? 0).toLocaleString()}</div>
+                <div className="flex items-center text-xs text-muted-foreground">
+                  {parseFloat(analytics.overview.userGrowthRate) >= 0 ? (
+                    <TrendingUp className="h-3 w-3 mr-1 text-green-600 dark:text-green-400" />
+                  ) : (
+                    <TrendingDown className="h-3 w-3 mr-1 text-red-600 dark:text-red-400" />
+                  )}
+                  {analytics.overview.userGrowthRate ?? '0'}% growth
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium flex items-center">
+                  <FileText className="h-4 w-4 mr-2" />
+                  Total Tickets
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{(analytics.overview.totalTickets ?? 0).toLocaleString()}</div>
+                <div className="text-xs text-muted-foreground">Across all servers</div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Avg Players per Server</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{analytics.overview.avgPlayersPerServer}</div>
+                <div className="text-xs text-muted-foreground">Engagement metric</div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Avg Tickets per Server</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{analytics.overview.avgTicketsPerServer}</div>
+                <div className="text-xs text-muted-foreground">Support activity</div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Server Registration Trend</CardTitle>
+              <CardDescription>Daily server registrations and cumulative growth</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {analytics.serverMetrics.registrationTrend.length === 0 ? (
+                <EmptyChart message="No registration data for this period" />
+              ) : (
                 <ResponsiveContainer width="100%" height={300}>
                   <AreaChart data={analytics.serverMetrics.registrationTrend}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -298,26 +275,54 @@ export default function AnalyticsPage() {
                     <YAxis />
                     <Tooltip />
                     <Legend />
-                    <Area 
-                      type="monotone" 
-                      dataKey="servers" 
-                      stackId="1" 
-                      stroke="#8884d8" 
-                      fill="#8884d8" 
-                      fillOpacity={0.6}
-                      name="Daily Registrations"
+                    <Area type="monotone" dataKey="servers" stackId="1" stroke="#8884d8" fill="#8884d8" fillOpacity={0.6} name="Daily Registrations" />
+                    <Area type="monotone" dataKey="cumulative" stackId="2" stroke="#82ca9d" fill="#82ca9d" fillOpacity={0.6} name="Cumulative Total" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="activity" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Online Servers &amp; Players Over Time</CardTitle>
+              <CardDescription>5-minute snapshots of platform activity</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {activityData.length === 0 ? (
+                <EmptyChart message="No activity snapshots yet — data is collected hourly" />
+              ) : (
+                <ResponsiveContainer width="100%" height={350}>
+                  <AreaChart data={activityData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis yAxisId="left" />
+                    <YAxis yAxisId="right" orientation="right" />
+                    <Tooltip />
+                    <Legend />
+                    <Area
+                      yAxisId="left"
+                      type="monotone"
+                      dataKey="activeServers"
+                      stroke="#8884d8"
+                      fill="#8884d8"
+                      fillOpacity={0.4}
+                      name="Online Servers"
                     />
-                    <Area 
-                      type="monotone" 
-                      dataKey="cumulative" 
-                      stackId="2" 
-                      stroke="#82ca9d" 
-                      fill="#82ca9d" 
-                      fillOpacity={0.6}
-                      name="Cumulative Total"
+                    <Area
+                      yAxisId="right"
+                      type="monotone"
+                      dataKey="onlinePlayers"
+                      stroke="#82ca9d"
+                      fill="#82ca9d"
+                      fillOpacity={0.4}
+                      name="Online Players"
                     />
                   </AreaChart>
                 </ResponsiveContainer>
+              )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -644,16 +649,18 @@ export default function AnalyticsPage() {
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
+        </TabsContent>
 
-          <TabsContent value="health" className="space-y-6">
-            {/* Error Rates Over Time */}
-            <Card>
-              <CardHeader>
-                <CardTitle>System Error Rates</CardTitle>
-                <CardDescription>Error, warning, and critical issue trends</CardDescription>
-              </CardHeader>
-              <CardContent>
+        <TabsContent value="health" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>System Error Rates</CardTitle>
+              <CardDescription>Error, warning, and critical issue trends</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {analytics.systemHealth.errorRates.length === 0 ? (
+                <EmptyChart message="No error rate data for this period" />
+              ) : (
                 <ResponsiveContainer width="100%" height={300}>
                   <AreaChart data={analytics.systemHealth.errorRates}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -661,40 +668,16 @@ export default function AnalyticsPage() {
                     <YAxis />
                     <Tooltip />
                     <Legend />
-                    <Area 
-                      type="monotone" 
-                      dataKey="critical" 
-                      stackId="1" 
-                      stroke="#dc2626" 
-                      fill="#dc2626" 
-                      fillOpacity={0.8}
-                      name="Critical"
-                    />
-                    <Area 
-                      type="monotone" 
-                      dataKey="errors" 
-                      stackId="1" 
-                      stroke="#ea580c" 
-                      fill="#ea580c" 
-                      fillOpacity={0.8}
-                      name="Errors"
-                    />
-                    <Area 
-                      type="monotone" 
-                      dataKey="warnings" 
-                      stackId="1" 
-                      stroke="#ca8a04" 
-                      fill="#ca8a04" 
-                      fillOpacity={0.8}
-                      name="Warnings"
-                    />
+                    <Area type="monotone" dataKey="critical" stackId="1" stroke="#dc2626" fill="#dc2626" fillOpacity={0.8} name="Critical" />
+                    <Area type="monotone" dataKey="errors" stackId="1" stroke="#ea580c" fill="#ea580c" fillOpacity={0.8} name="Errors" />
+                    <Area type="monotone" dataKey="warnings" stackId="1" stroke="#ca8a04" fill="#ca8a04" fillOpacity={0.8} name="Warnings" />
                   </AreaChart>
                 </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
-} 
+}

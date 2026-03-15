@@ -1,6 +1,7 @@
 import { Route, Switch, Redirect } from 'wouter';
 import { Toaster } from '@modl-gg/shared-web/components/ui/toaster';
 import { useAuth } from '@/hooks/useAuth';
+import Layout from '@/components/layout/Layout';
 import LoginPage from '@/pages/LoginPage';
 import DashboardPage from '@/pages/DashboardPage';
 import ServersPage from '@/pages/ServersPage';
@@ -8,7 +9,6 @@ import ServerDetailPage from '@/pages/ServerDetailPage';
 import MonitoringPage from '@/pages/MonitoringPage';
 import LoadingPage from '@/pages/LoadingPage';
 import AnalyticsPage from '@/pages/AnalyticsPage';
-import SystemConfigPage from '@/pages/SystemConfigPage';
 import SystemPromptsPage from '@/pages/SystemPromptsPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -22,7 +22,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <LoginPage />;
   }
 
-  return <>{children}</>;
+  return <Layout>{children}</Layout>;
 }
 
 function AppRoutes() {
@@ -37,7 +37,7 @@ function AppRoutes() {
       <Route path="/login">
         {isAuthenticated ? <Redirect to="/" /> : <LoginPage />}
       </Route>
-      
+
       <ProtectedRoute>
         <Switch>
           <Route path="/" component={DashboardPage} />
@@ -45,8 +45,7 @@ function AppRoutes() {
           <Route path="/servers/:id" component={ServerDetailPage} />
           <Route path="/monitoring" component={MonitoringPage} />
           <Route path="/analytics" component={AnalyticsPage} />
-          <Route path="/system" component={SystemConfigPage} />
-          <Route path="/system/prompts" component={SystemPromptsPage} />
+          <Route path="/prompts" component={SystemPromptsPage} />
           <Route>
             <Redirect to="/" />
           </Route>
@@ -65,4 +64,4 @@ function App() {
   );
 }
 
-export default App; 
+export default App;

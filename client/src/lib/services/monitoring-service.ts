@@ -10,6 +10,8 @@ export interface DashboardMetrics {
     pending: number;
     failed: number;
     recentRegistrations: number;
+    concurrentServers: number;
+    concurrentPlayers: number;
   };
   logs: {
     last24h: {

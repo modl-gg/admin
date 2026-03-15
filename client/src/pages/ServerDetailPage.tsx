@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
-import { Link, useParams, useLocation } from 'wouter';
+import { useParams, useLocation } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@modl-gg/shared-web/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@modl-gg/shared-web/components/ui/card';
 import { Badge } from '@modl-gg/shared-web/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@modl-gg/shared-web/components/ui/tabs';
-import { useAuth } from '@/hooks/useAuth';
 import {
   serversService,
   type AdminServerDetails,
@@ -13,18 +12,14 @@ import {
 } from '@/lib/services/servers-service';
 import { formatDate, formatDateRelative, formatBytes } from '@/lib/utils';
 import {
-  ArrowLeft,
   Server,
   Globe,
   Database,
-  Calendar,
   Activity,
-  Settings,
   AlertTriangle,
   CheckCircle,
   XCircle,
   Clock,
-  LogOut,
   Edit,
   Trash2,
   RotateCcw
@@ -44,7 +39,6 @@ import { EditServerModal } from '@/components/EditServerModal';
 
 export default function ServerDetailPage() {
   const { id } = useParams();
-  const { logout } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const queryClient = useQueryClient();
@@ -163,71 +157,29 @@ export default function ServerDetailPage() {
 
   if (!isValidId || error || !server) {
     return (
-      <div className="min-h-screen bg-background">
-        <header className="bg-card border-b">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center py-6">
-              <Link href="/servers">
-                <Button variant="ghost" size="sm">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back to Servers
-                </Button>
-              </Link>
-              <Button onClick={logout} variant="outline">
-                <LogOut className="h-4 w-4 mr-2" />
-                Logout
-              </Button>
-            </div>
-          </div>
-        </header>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <Card>
-            <CardContent className="text-center py-8">
-              <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-red-500 dark:text-red-400" />
-              <h3 className="text-lg font-semibold mb-2">Server Not Found</h3>
-              <p className="text-muted-foreground">
-                {!isValidId ? 'Invalid server ID provided.' : 'The requested server could not be found.'}
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <Card>
+          <CardContent className="text-center py-8">
+            <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-red-500 dark:text-red-400" />
+            <h3 className="text-lg font-semibold mb-2">Server Not Found</h3>
+            <p className="text-muted-foreground">
+              {!isValidId ? 'Invalid server ID provided.' : 'The requested server could not be found.'}
+            </p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="bg-card border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center">
-              <Link href="/servers">
-                <Button variant="ghost" size="sm" className="mr-4">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back to Servers
-                </Button>
-              </Link>
-              <div className="flex items-center space-x-3">
-                <Server className="h-6 w-6 text-muted-foreground" />
-                <div>
-                  <h1 className="text-2xl font-bold text-foreground">{server.serverName}</h1>
-                  <p className="text-sm text-muted-foreground">{server.customDomain}</p>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center space-x-3">
-              <Button onClick={logout} variant="outline">
-                <LogOut className="h-4 w-4 mr-2" />
-                Logout
-              </Button>
-            </div>
-          </div>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="flex items-center space-x-3 mb-6">
+        <Server className="h-6 w-6 text-muted-foreground" />
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">{server.serverName}</h1>
+          <p className="text-sm text-muted-foreground">{server.customDomain}</p>
         </div>
-      </header>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="configuration">Configuration</TabsTrigger>

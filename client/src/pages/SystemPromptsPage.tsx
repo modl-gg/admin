@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'wouter';
+import { useState, useEffect } from 'react';
 import { Button } from '@modl-gg/shared-web/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@modl-gg/shared-web/components/ui/card';
 import { Textarea } from '@modl-gg/shared-web/components/ui/textarea';
 import { Badge } from '@modl-gg/shared-web/components/ui/badge';
 import { useToast } from '@modl-gg/shared-web/hooks/use-toast';
-import { RefreshCw, RotateCcw, Save, AlertTriangle, Brain, ShieldCheck, ArrowLeft, Settings } from 'lucide-react';
+import { RefreshCw, RotateCcw, Save, AlertTriangle, Brain, ShieldCheck } from 'lucide-react';
 import {
   systemService,
   type PromptStrictnessLevel,
@@ -162,30 +161,12 @@ export default function SystemPromptsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="bg-card border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center">
-              <Link href="/system">
-                <Button variant="ghost" size="sm" className="mr-4">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back to System Config
-                </Button>
-              </Link>
-              <div className="flex items-center space-x-3">
-                <Settings className="h-6 w-6 text-muted-foreground" />
-                <div>
-                  <h1 className="text-2xl font-bold text-foreground">AI System Prompts</h1>
-                  <p className="text-sm text-muted-foreground">Configure AI moderation prompts for different strictness levels</p>
-                </div>
-              </div>
-            </div>
-          </div>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="space-y-6">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold">AI System Prompts</h1>
+          <p className="text-muted-foreground mt-1">Configure AI moderation prompts for different strictness levels</p>
         </div>
-      </header>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid gap-6">
           {(['lenient', 'standard', 'strict'] as const).map((level) => {
             const prompt = prompts.find((entry) => entry.strictnessLevel === level);
@@ -278,17 +259,6 @@ export default function SystemPromptsPage() {
               </Card>
             );
           })}
-        </div>
-
-        <div className="mt-8 p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
-          <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">About AI System Prompts</h3>
-          <div className="text-sm text-blue-800 dark:text-blue-300 space-y-1">
-            <p>- These prompts control how the AI analyzes chat messages for rule violations</p>
-            <p>- Each strictness level determines how aggressive the AI moderation will be</p>
-            <p>- Changes take effect immediately for new ticket analyses</p>
-            <p>- Prompts should include clear guidelines for JSON response format</p>
-            <p>- Test changes carefully to ensure appropriate moderation behavior</p>
-          </div>
         </div>
       </div>
     </div>
