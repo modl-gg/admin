@@ -4,6 +4,15 @@ import { unwrapEnvelope } from '@/lib/api-contracts/common';
 export type AnalyticsRange = '7d' | '30d' | '90d' | '1y';
 export type AnalyticsExportType = 'csv' | 'json';
 
+export interface LiveServer {
+  serverId: string;
+  serverName: string;
+  playerCount: number;
+  platform: string;
+  version: string;
+  pluginVersion: string;
+}
+
 export interface AnalyticsData {
   overview: {
     totalServers: number;
@@ -22,15 +31,13 @@ export interface AnalyticsData {
   };
   usageStatistics: {
     topServersByUsers: Array<{ serverName: string; userCount: number; customDomain: string }>;
-    serverActivity: Array<{ date: string; activeServers: number; newRegistrations: number }>;
-    geographicDistribution: Array<{ region: string; servers: number; percentage: number }>;
-    playerGrowth: Array<{ date: string; players: number; cumulative: number }>;
-    ticketVolume: Array<{ date: string; tickets: number }>;
+    serverActivity: Array<{ date: string; activeServers: number }>;
+    liveServers: LiveServer[];
+    totalPlayerCount: number;
+    playerActivity: Array<{ date: string; players: number }>;
   };
   systemHealth: {
     errorRates: Array<{ date: string; errors: number; warnings: number; critical: number }>;
-    uptime?: Array<{ service: string; uptime: number; status: string }>;
-    performanceMetrics?: Array<{ metric: string; value: number; trend: 'up' | 'down' | 'stable' }>;
   };
 }
 
@@ -53,14 +60,12 @@ interface RawAnalyticsData {
   usageStatistics?: {
     topServersByUsers?: unknown;
     serverActivity?: unknown;
-    geographicDistribution?: unknown;
-    playerGrowth?: unknown;
-    ticketVolume?: unknown;
+    liveServers?: unknown;
+    totalPlayerCount?: unknown;
+    playerActivity?: unknown;
   };
   systemHealth?: {
     errorRates?: unknown;
-    uptime?: unknown;
-    performanceMetrics?: unknown;
   };
 }
 
@@ -167,6 +172,34 @@ export const analyticsService = {
       customDomain: parseString(row.customDomain, 'unknown'),
     }));
 
+    const serverActivityRaw = Array.isArray(data.usageStatistics?.serverActivity)
+      ? (data.usageStatistics?.serverActivity as Array<Record<string, unknown>>)
+      : [];
+    const serverActivity = serverActivityRaw.map((row) => ({
+      date: parseString(row.date),
+      activeServers: parseNumber(row.activeServers),
+    }));
+
+    const liveServersRaw = Array.isArray(data.usageStatistics?.liveServers)
+      ? (data.usageStatistics?.liveServers as Array<Record<string, unknown>>)
+      : [];
+    const liveServers: LiveServer[] = liveServersRaw.map((row) => ({
+      serverId: parseString(row.serverId),
+      serverName: parseString(row.serverName, 'Unknown'),
+      playerCount: parseNumber(row.playerCount),
+      platform: parseString(row.platform, 'unknown'),
+      version: parseString(row.version),
+      pluginVersion: parseString(row.pluginVersion),
+    }));
+
+    const playerActivityRaw = Array.isArray(data.usageStatistics?.playerActivity)
+      ? (data.usageStatistics?.playerActivity as Array<Record<string, unknown>>)
+      : [];
+    const playerActivity = playerActivityRaw.map((row) => ({
+      date: parseString(row.date),
+      players: parseNumber(row.players),
+    }));
+
     return {
       overview: {
         totalServers: parseNumber(overview.totalServers),
@@ -185,29 +218,15 @@ export const analyticsService = {
       },
       usageStatistics: {
         topServersByUsers,
-        serverActivity: Array.isArray(data.usageStatistics?.serverActivity)
-          ? (data.usageStatistics?.serverActivity as Array<{ date: string; activeServers: number; newRegistrations: number }>)
-          : [],
-        geographicDistribution: Array.isArray(data.usageStatistics?.geographicDistribution)
-          ? (data.usageStatistics?.geographicDistribution as Array<{ region: string; servers: number; percentage: number }>)
-          : [],
-        playerGrowth: Array.isArray(data.usageStatistics?.playerGrowth)
-          ? (data.usageStatistics?.playerGrowth as Array<{ date: string; players: number; cumulative: number }>)
-          : [],
-        ticketVolume: Array.isArray(data.usageStatistics?.ticketVolume)
-          ? (data.usageStatistics?.ticketVolume as Array<{ date: string; tickets: number }>)
-          : [],
+        serverActivity,
+        liveServers,
+        totalPlayerCount: parseNumber(data.usageStatistics?.totalPlayerCount),
+        playerActivity,
       },
       systemHealth: {
         errorRates: Array.isArray(data.systemHealth?.errorRates)
           ? (data.systemHealth?.errorRates as Array<{ date: string; errors: number; warnings: number; critical: number }>)
           : [],
-        uptime: Array.isArray(data.systemHealth?.uptime)
-          ? (data.systemHealth?.uptime as Array<{ service: string; uptime: number; status: string }>)
-          : undefined,
-        performanceMetrics: Array.isArray(data.systemHealth?.performanceMetrics)
-          ? (data.systemHealth?.performanceMetrics as Array<{ metric: string; value: number; trend: 'up' | 'down' | 'stable' }>)
-          : undefined,
       },
     };
   },

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@modl-gg/shared-web/components/ui/button';
@@ -10,8 +10,6 @@ import { analyticsService, type AnalyticsData, type AnalyticsRange } from '@/lib
 import {
   BarChart,
   Bar,
-  LineChart,
-  Line,
   PieChart,
   Pie,
   Cell,
@@ -24,7 +22,7 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts';
-import { 
+import {
   ArrowLeft,
   TrendingUp,
   TrendingDown,
@@ -35,7 +33,6 @@ import {
   Activity,
   LogOut,
   Clock,
-  Globe,
   AlertTriangle
 } from 'lucide-react';
 
@@ -51,6 +48,26 @@ export default function AnalyticsPage() {
     queryFn: () => analyticsService.getAnalytics(dateRange),
     refetchInterval: 5 * 60 * 1000, // Refresh every 5 minutes
   });
+
+  const serverDistributions = useMemo(() => {
+    const servers = analytics?.usageStatistics.liveServers ?? [];
+    const count = (key: 'platform' | 'version' | 'pluginVersion') => {
+      const counts: Record<string, number> = {};
+      for (const s of servers) {
+        const val = s[key] || 'unknown';
+        counts[val] = (counts[val] ?? 0) + 1;
+      }
+      const total = servers.length || 1;
+      return Object.entries(counts)
+        .map(([name, value]) => ({ name, value, percentage: Number(((value / total) * 100).toFixed(1)) }))
+        .sort((a, b) => b.value - a.value);
+    };
+    return {
+      byPlatform: count('platform'),
+      byVersion: count('version'),
+      byPluginVersion: count('pluginVersion'),
+    };
+  }, [analytics]);
 
   const generateReport = async () => {
     try {
@@ -350,168 +367,281 @@ export default function AnalyticsPage() {
                     </ResponsiveContainer>
                 </CardContent>
             </Card>
+
+            {/* Snapshot-based distribution charts */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Platform Distribution</CardTitle>
+                  <CardDescription>Live servers by platform type</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {serverDistributions.byPlatform.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={250}>
+                      <PieChart>
+                        <Pie
+                          data={serverDistributions.byPlatform}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ name, percentage }) => `${name} (${percentage}%)`}
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="value"
+                        >
+                          {serverDistributions.byPlatform.map((_entry, index) => (
+                            <Cell key={`platform-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <p className="text-center text-muted-foreground py-12">No live servers.</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Minecraft Version</CardTitle>
+                  <CardDescription>Live servers by MC version</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {serverDistributions.byVersion.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={250}>
+                      <PieChart>
+                        <Pie
+                          data={serverDistributions.byVersion}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ name, percentage }) => `${name} (${percentage}%)`}
+                          outerRadius={80}
+                          fill="#82ca9d"
+                          dataKey="value"
+                        >
+                          {serverDistributions.byVersion.map((_entry, index) => (
+                            <Cell key={`version-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <p className="text-center text-muted-foreground py-12">No live servers.</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Plugin Version</CardTitle>
+                  <CardDescription>Live servers by modl plugin version</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {serverDistributions.byPluginVersion.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={250}>
+                      <PieChart>
+                        <Pie
+                          data={serverDistributions.byPluginVersion}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ name, percentage }) => `${name} (${percentage}%)`}
+                          outerRadius={80}
+                          fill="#ffc658"
+                          dataKey="value"
+                        >
+                          {serverDistributions.byPluginVersion.map((_entry, index) => (
+                            <Cell key={`plugin-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <p className="text-center text-muted-foreground py-12">No live servers.</p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           <TabsContent value="usage" className="space-y-6">
-            {/* Player Growth Chart */}
+            {/* Live Snapshot Summary */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium flex items-center">
+                    <Server className="h-4 w-4 mr-2" />
+                    Live Servers
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{analytics.usageStatistics.liveServers.length}</div>
+                  <div className="text-xs text-muted-foreground">Currently connected</div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium flex items-center">
+                    <Users className="h-4 w-4 mr-2" />
+                    Online Players
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{analytics.usageStatistics.totalPlayerCount.toLocaleString()}</div>
+                  <div className="text-xs text-muted-foreground">Across all live servers</div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium flex items-center">
+                    <Activity className="h-4 w-4 mr-2" />
+                    Snapshot Window
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{analytics.usageStatistics.serverActivity.length}</div>
+                  <div className="text-xs text-muted-foreground">Data points (last 24h, every 5 min)</div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Active Servers Over Time */}
             <Card>
               <CardHeader>
-                <CardTitle>Player Growth Trend</CardTitle>
-                <CardDescription>Total players across all servers over time</CardDescription>
+                <CardTitle>Active Servers (Last 24h)</CardTitle>
+                <CardDescription>Number of servers with recent heartbeats, sampled every 5 minutes</CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={analytics.usageStatistics.playerGrowth}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Area 
-                      type="monotone" 
-                      dataKey="players" 
-                      stackId="1" 
-                      stroke="#10b981" 
-                      fill="#10b981" 
-                      fillOpacity={0.6}
-                      name="New Players"
-                    />
-                    <Area 
-                      type="monotone" 
-                      dataKey="cumulative" 
-                      stackId="2" 
-                      stroke="#3b82f6" 
-                      fill="#3b82f6" 
-                      fillOpacity={0.6}
-                      name="Total Players"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
+                {analytics.usageStatistics.serverActivity.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <AreaChart data={analytics.usageStatistics.serverActivity.map(p => ({
+                      ...p,
+                      date: new Date(p.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    }))}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="date" />
+                      <YAxis allowDecimals={false} />
+                      <Tooltip />
+                      <Area
+                        type="monotone"
+                        dataKey="activeServers"
+                        stroke="#8884d8"
+                        fill="#8884d8"
+                        fillOpacity={0.4}
+                        name="Active Servers"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <p className="text-center text-muted-foreground py-12">No snapshot data yet. Data appears after the first 5-minute collection cycle.</p>
+                )}
               </CardContent>
             </Card>
 
-            {/* Ticket Volume Chart */}
+            {/* Player Activity Over Time */}
             <Card>
               <CardHeader>
-                <CardTitle>Ticket Volume Trend</CardTitle>
-                <CardDescription>Support tickets created over time</CardDescription>
+                <CardTitle>Player Activity (Last 24h)</CardTitle>
+                <CardDescription>Total online players across all servers, sampled every 5 minutes</CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={analytics.usageStatistics.ticketVolume}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="tickets" fill="#f59e0b" name="Tickets Created" />
-                  </BarChart>
-                </ResponsiveContainer>
+                {analytics.usageStatistics.playerActivity.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <AreaChart data={analytics.usageStatistics.playerActivity.map(p => ({
+                      ...p,
+                      date: new Date(p.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    }))}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="date" />
+                      <YAxis allowDecimals={false} />
+                      <Tooltip />
+                      <Area
+                        type="monotone"
+                        dataKey="players"
+                        stroke="#10b981"
+                        fill="#10b981"
+                        fillOpacity={0.4}
+                        name="Online Players"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <p className="text-center text-muted-foreground py-12">No player activity data yet.</p>
+                )}
               </CardContent>
             </Card>
 
-             <Card>
+            {/* Live Server Instances */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Live Server Instances</CardTitle>
+                <CardDescription>Servers currently connected to the platform (from latest snapshot)</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {analytics.usageStatistics.liveServers.length > 0 ? (
+                  <div className="space-y-3">
+                    {analytics.usageStatistics.liveServers.map((server) => (
+                      <div key={server.serverId} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-2 h-2 bg-green-500 rounded-full" />
+                          <div>
+                            <p className="font-medium">{server.serverName}</p>
+                            <div className="flex items-center space-x-2 text-xs text-muted-foreground">
+                              <Badge variant="outline" className="text-xs">{server.platform}</Badge>
+                              {server.version && <span>MC {server.version}</span>}
+                              {server.pluginVersion && <span>v{server.pluginVersion}</span>}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold">{server.playerCount}</p>
+                          <p className="text-xs text-muted-foreground">players</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-center text-muted-foreground py-8">No servers currently connected.</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Top Servers by User Count */}
+            <Card>
               <CardHeader>
                 <CardTitle>Top Servers by User Count</CardTitle>
                 <CardDescription>Most active servers in the network</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {analytics.usageStatistics.topServersByUsers.slice(0, 10).map((server, index) => (
-                    <div key={server.serverName} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                          <span className="text-sm font-semibold">#{index + 1}</span>
-                        </div>
-                        <div>
-                          <p className="font-medium">{server.serverName}</p>
-                          <p className="text-sm text-muted-foreground">{server.customDomain}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-semibold">{(server.userCount ?? 0).toLocaleString()}</p>
-                        <p className="text-sm text-muted-foreground">users</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Server Activity Trend */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Server Activity Timeline</CardTitle>
-                <CardDescription>Daily active servers and new registrations</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={analytics.usageStatistics.serverActivity}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Line 
-                      type="monotone" 
-                      dataKey="activeServers" 
-                      stroke="#8884d8" 
-                      strokeWidth={2}
-                      name="Active Servers"
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="newRegistrations" 
-                      stroke="#82ca9d" 
-                      strokeWidth={2}
-                      name="New Registrations"
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            {/* Geographic Distribution */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Geographic Distribution</CardTitle>
-                <CardDescription>Server distribution by region</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {analytics.usageStatistics.topServersByUsers.length > 0 ? (
                   <div className="space-y-4">
-                    {analytics.usageStatistics.geographicDistribution.map((region, index) => (
-                      <div key={region.region} className="flex items-center justify-between">
+                    {analytics.usageStatistics.topServersByUsers.slice(0, 10).map((server, index) => (
+                      <div key={server.serverName} className="flex items-center justify-between p-3 border rounded-lg">
                         <div className="flex items-center space-x-3">
-                          <Globe className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-medium">{region.region}</span>
+                          <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                            <span className="text-sm font-semibold">#{index + 1}</span>
+                          </div>
+                          <div>
+                            <p className="font-medium">{server.serverName}</p>
+                            <p className="text-sm text-muted-foreground">{server.customDomain}</p>
+                          </div>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <span className="font-semibold">{region.servers}</span>
-                          <Badge variant="outline">{region.percentage}%</Badge>
+                        <div className="text-right">
+                          <p className="font-semibold">{(server.userCount ?? 0).toLocaleString()}</p>
+                          <p className="text-sm text-muted-foreground">users</p>
                         </div>
                       </div>
                     ))}
                   </div>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <PieChart>
-                      <Pie
-                        data={analytics.usageStatistics.geographicDistribution}
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="servers"
-                        label={({ region, percentage }) => `${region}: ${percentage}%`}
-                      >
-                        {analytics.usageStatistics.geographicDistribution.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
+                ) : (
+                  <p className="text-center text-muted-foreground py-8">No server data available.</p>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
