@@ -1,5 +1,4 @@
 import { useState, useMemo } from 'react';
-import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@modl-gg/shared-web/components/ui/card';
 import { Badge } from '@modl-gg/shared-web/components/ui/badge';
@@ -28,7 +27,6 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import {
-  ArrowLeft,
   TrendingUp,
   TrendingDown,
   Users,
@@ -36,8 +34,6 @@ import {
   FileText,
   BarChart3,
   Activity,
-  LogOut,
-  Clock,
   AlertTriangle
 } from 'lucide-react';
 
@@ -94,6 +90,15 @@ export default function AnalyticsPage() {
     refetchInterval: 5 * 60 * 1000,
   });
 
+  const { data: activityData = [] } = useQuery<ActivitySnapshot[]>({
+    queryKey: ['activitySnapshots', dateRange],
+    queryFn: async () => {
+      const response = await apiClient.getActivitySnapshots(dateRange);
+      return response.data ?? [];
+    },
+    refetchInterval: 5 * 60 * 1000,
+  });
+
   const serverDistributions = useMemo(() => {
     const servers = analytics?.usageStatistics.liveServers ?? [];
     const count = (key: 'platform' | 'version' | 'pluginVersion') => {
@@ -113,18 +118,6 @@ export default function AnalyticsPage() {
       byPluginVersion: count('pluginVersion'),
     };
   }, [analytics]);
-
-  const generateReport = async () => {
-    try {
-      await analyticsService.generateReport({
-        type: 'comprehensive',
-        dateRange,
-        sections: ['overview', 'servers', 'usage', 'health']
-      });
-    } catch (error) {
-      console.error('Report generation failed:', error);
-    }
-  };
 
   if (isLoading) {
     return (
@@ -152,7 +145,16 @@ export default function AnalyticsPage() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">Analytics & Reports</h1>
-        {dateRangeSelector}
+        <Select value={dateRange} onValueChange={setDateRange}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Date range" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="7d">Last 7 days</SelectItem>
+            <SelectItem value="30d">Last 30 days</SelectItem>
+            <SelectItem value="90d">Last 90 days</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -320,6 +322,7 @@ export default function AnalyticsPage() {
                     />
                   </AreaChart>
                 </ResponsiveContainer>
+              )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -646,7 +649,6 @@ export default function AnalyticsPage() {
                 )}
               </CardContent>
             </Card>
-          )}
         </TabsContent>
 
         <TabsContent value="health" className="space-y-6">
