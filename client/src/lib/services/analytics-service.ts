@@ -1,5 +1,5 @@
 import { requestJsonRaw, requestText } from '@/lib/api';
-import { unwrapEnvelope } from '@/lib/api-contracts/common';
+import { parseNumber, unwrapEnvelope } from '@/lib/api-contracts/common';
 
 export type AnalyticsRange = '7d' | '30d' | '90d' | '1y';
 export type AnalyticsExportType = 'csv' | 'json';
@@ -67,21 +67,6 @@ interface RawAnalyticsData {
   systemHealth?: {
     errorRates?: unknown;
   };
-}
-
-function parseNumber(value: unknown, fallback = 0): number {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
-  }
-
-  if (typeof value === 'string') {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) {
-      return parsed;
-    }
-  }
-
-  return fallback;
 }
 
 function parseString(value: unknown, fallback = ''): string {
@@ -224,9 +209,15 @@ export const analyticsService = {
         playerActivity,
       },
       systemHealth: {
-        errorRates: Array.isArray(data.systemHealth?.errorRates)
-          ? (data.systemHealth?.errorRates as Array<{ date: string; errors: number; warnings: number; critical: number }>)
-          : [],
+        errorRates: (Array.isArray(data.systemHealth?.errorRates)
+          ? (data.systemHealth?.errorRates as Array<Record<string, unknown>>)
+          : []
+        ).map((row) => ({
+          date: parseString(row.date),
+          errors: parseNumber(row.errors),
+          warnings: parseNumber(row.warnings),
+          critical: parseNumber(row.critical),
+        })),
       },
     };
   },

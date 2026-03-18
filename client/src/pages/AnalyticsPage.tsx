@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from '@modl-gg/shared-web/components/ui/select';
 import { apiClient, ActivitySnapshot } from '@/lib/api';
-import { analyticsService, AnalyticsData } from '@/lib/services/analytics-service';
+import { analyticsService, AnalyticsData, AnalyticsRange } from '@/lib/services/analytics-service';
 import {
   BarChart,
   Bar,
@@ -51,12 +51,12 @@ function EmptyChart({ message }: { message: string }) {
 }
 
 export default function AnalyticsPage() {
-  const [dateRange, setDateRange] = useState('30d');
+  const [dateRange, setDateRange] = useState<AnalyticsRange>('30d');
   const [activeTab, setActiveTab] = useState('overview');
 
   const { data: analytics, isLoading, error } = useQuery<AnalyticsData>({
     queryKey: ['analytics', dateRange],
-    queryFn: () => analyticsService.getAnalytics(dateRange as Parameters<typeof analyticsService.getAnalytics>[0]),
+    queryFn: () => analyticsService.getAnalytics(dateRange),
     refetchInterval: 5 * 60 * 1000,
   });
 
@@ -68,6 +68,20 @@ export default function AnalyticsPage() {
     },
     refetchInterval: 5 * 60 * 1000,
   });
+
+  const formattedServerActivity = useMemo(() =>
+    (analytics?.usageStatistics.serverActivity ?? []).map(p => ({
+      ...p,
+      date: new Date(p.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    })),
+  [analytics]);
+
+  const formattedPlayerActivity = useMemo(() =>
+    (analytics?.usageStatistics.playerActivity ?? []).map(p => ({
+      ...p,
+      date: new Date(p.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    })),
+  [analytics]);
 
   const serverDistributions = useMemo(() => {
     const servers = analytics?.usageStatistics.liveServers ?? [];
@@ -115,7 +129,7 @@ export default function AnalyticsPage() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">Analytics & Reports</h1>
-        <Select value={dateRange} onValueChange={setDateRange}>
+        <Select value={dateRange} onValueChange={(v) => setDateRange(v as AnalyticsRange)}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Date range" />
           </SelectTrigger>
@@ -493,12 +507,9 @@ export default function AnalyticsPage() {
                 <CardDescription>Number of servers with recent heartbeats, sampled every 5 minutes</CardDescription>
               </CardHeader>
               <CardContent>
-                {analytics.usageStatistics.serverActivity.length > 0 ? (
+                {formattedServerActivity.length > 0 ? (
                   <ResponsiveContainer width="100%" height={300}>
-                    <AreaChart data={analytics.usageStatistics.serverActivity.map(p => ({
-                      ...p,
-                      date: new Date(p.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    }))}>
+                    <AreaChart data={formattedServerActivity}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="date" />
                       <YAxis allowDecimals={false} />
@@ -526,12 +537,9 @@ export default function AnalyticsPage() {
                 <CardDescription>Total online players across all servers, sampled every 5 minutes</CardDescription>
               </CardHeader>
               <CardContent>
-                {analytics.usageStatistics.playerActivity.length > 0 ? (
+                {formattedPlayerActivity.length > 0 ? (
                   <ResponsiveContainer width="100%" height={300}>
-                    <AreaChart data={analytics.usageStatistics.playerActivity.map(p => ({
-                      ...p,
-                      date: new Date(p.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    }))}>
+                    <AreaChart data={formattedPlayerActivity}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="date" />
                       <YAxis allowDecimals={false} />

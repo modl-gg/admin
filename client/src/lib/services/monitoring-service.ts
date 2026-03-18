@@ -1,5 +1,5 @@
 import { requestBlob, requestJsonRaw } from '@/lib/api';
-import { normalizeDateValue, toEpochMillisString, unwrapEnvelope } from '@/lib/api-contracts/common';
+import { normalizeDateValue, parseNumber, toEpochMillisString, unwrapEnvelope } from '@/lib/api-contracts/common';
 
 export type LogLevel = 'info' | 'warning' | 'error' | 'critical';
 
@@ -116,20 +116,6 @@ interface RawLogSourcesPayload {
   categories?: unknown;
 }
 
-function parseNumber(value: unknown, fallback = 0): number {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
-  }
-
-  if (typeof value === 'string') {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) {
-      return parsed;
-    }
-  }
-
-  return fallback;
-}
 
 function toLogLevel(value: unknown): LogLevel {
   if (typeof value !== 'string') {
