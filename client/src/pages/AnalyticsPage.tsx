@@ -288,7 +288,7 @@ export default function AnalyticsPage() {
                     <Legend />
                     <Area
                       yAxisId="left"
-                      type="monotone"
+                      type="linear"
                       dataKey="activeServers"
                       stroke="#8884d8"
                       fill="#8884d8"
@@ -297,7 +297,7 @@ export default function AnalyticsPage() {
                     />
                     <Area
                       yAxisId="right"
-                      type="monotone"
+                      type="linear"
                       dataKey="onlinePlayers"
                       stroke="#82ca9d"
                       fill="#82ca9d"
@@ -545,7 +545,7 @@ export default function AnalyticsPage() {
                       <YAxis allowDecimals={false} />
                       <Tooltip />
                       <Area
-                        type="monotone"
+                        type="linear"
                         dataKey="players"
                         stroke="#10b981"
                         fill="#10b981"
