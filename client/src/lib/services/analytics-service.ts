@@ -1,5 +1,6 @@
 import { requestJsonRaw, requestText } from '@/lib/api';
-import { parseNumber, unwrapEnvelope } from '@/lib/api-contracts/common';
+import { parseNumber, isRecord, unwrapEnvelope } from '@/lib/api-contracts/common';
+=======
 
 export type AnalyticsRange = '7d' | '30d' | '90d' | '1y';
 export type AnalyticsExportType = 'csv' | 'json';
@@ -41,6 +42,11 @@ export interface AnalyticsData {
   };
 }
 
+interface RawServerInstance {
+  date: string;
+  servers: Array<Record<string, unknown>>;
+}
+
 interface RawAnalyticsData {
   overview?: {
     totalServers?: unknown;
@@ -67,6 +73,42 @@ interface RawAnalyticsData {
   systemHealth?: {
     errorRates?: unknown;
   };
+}
+
+function extractServerInstances(raw: unknown): RawServerInstance[] {
+  if (!isRecord(raw) || !Array.isArray(raw.serverInstances)) {
+    return [];
+  }
+
+  return (raw.serverInstances as unknown[]).filter(
+    (entry): entry is RawServerInstance =>
+      isRecord(entry) &&
+      typeof entry.date === 'string' &&
+      Array.isArray(entry.servers),
+  );
+}
+
+function extractActivityData(raw: unknown): Array<Record<string, unknown>> {
+  if (!isRecord(raw) || !Array.isArray(raw.data)) {
+    return [];
+  }
+
+  return raw.data.filter((entry): entry is Record<string, unknown> => isRecord(entry));
+}
+
+function parseNumber(value: unknown, fallback = 0): number {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return fallback;
 }
 
 function parseString(value: unknown, fallback = ''): string {
@@ -100,7 +142,16 @@ export const analyticsService = {
   async getAnalytics(range: AnalyticsRange): Promise<AnalyticsData> {
     const backendRange = normalizeRange(range);
     const raw = await requestJsonRaw<unknown>(`/v1/admin/analytics/dashboard?range=${backendRange}`);
-    const { data } = unwrapEnvelope<RawAnalyticsData>(raw, 'admin analytics dashboard');
+
+    const serverInstances = extractServerInstances(raw);
+    const activityData = extractActivityData(raw);
+
+    let data: RawAnalyticsData;
+    try {
+      ({ data } = unwrapEnvelope<RawAnalyticsData>(raw, 'admin analytics dashboard'));
+    } catch {
+      data = {};
+    }
 
     const overview = data.overview ?? {};
 
@@ -160,15 +211,26 @@ export const analyticsService = {
     const serverActivityRaw = Array.isArray(data.usageStatistics?.serverActivity)
       ? (data.usageStatistics?.serverActivity as Array<Record<string, unknown>>)
       : [];
-    const serverActivity = serverActivityRaw.map((row) => ({
-      date: parseString(row.date),
-      activeServers: parseNumber(row.activeServers),
-    }));
+    const serverActivity = serverActivityRaw.length > 0
+      ? serverActivityRaw.map((row) => ({
+          date: parseString(row.date),
+          activeServers: parseNumber(row.activeServers),
+        }))
+      : activityData.map((row) => ({
+          date: parseString(row.date),
+          activeServers: parseNumber(row.activeServers),
+        }));
 
     const liveServersRaw = Array.isArray(data.usageStatistics?.liveServers)
       ? (data.usageStatistics?.liveServers as Array<Record<string, unknown>>)
       : [];
-    const liveServers: LiveServer[] = liveServersRaw.map((row) => ({
+    const latestSnapshot = serverInstances.length > 0
+      ? serverInstances[serverInstances.length - 1]
+      : null;
+    const liveServerSource = liveServersRaw.length > 0
+      ? liveServersRaw
+      : (latestSnapshot?.servers ?? []);
+    const liveServers: LiveServer[] = liveServerSource.map((row) => ({
       serverId: parseString(row.serverId),
       serverName: parseString(row.serverName, 'Unknown'),
       playerCount: parseNumber(row.playerCount),
@@ -180,10 +242,15 @@ export const analyticsService = {
     const playerActivityRaw = Array.isArray(data.usageStatistics?.playerActivity)
       ? (data.usageStatistics?.playerActivity as Array<Record<string, unknown>>)
       : [];
-    const playerActivity = playerActivityRaw.map((row) => ({
-      date: parseString(row.date),
-      players: parseNumber(row.players),
-    }));
+    const playerActivity = playerActivityRaw.length > 0
+      ? playerActivityRaw.map((row) => ({
+          date: parseString(row.date),
+          players: parseNumber(row.players),
+        }))
+      : serverInstances.map((snapshot) => ({
+          date: snapshot.date,
+          players: snapshot.servers.reduce((sum, s) => sum + parseNumber(s.playerCount), 0),
+        }));
 
     return {
       overview: {
@@ -205,7 +272,8 @@ export const analyticsService = {
         topServersByUsers,
         serverActivity,
         liveServers,
-        totalPlayerCount: parseNumber(data.usageStatistics?.totalPlayerCount),
+        totalPlayerCount: parseNumber(data.usageStatistics?.totalPlayerCount) ||
+          liveServers.reduce((sum, s) => sum + s.playerCount, 0),
         playerActivity,
       },
       systemHealth: {
