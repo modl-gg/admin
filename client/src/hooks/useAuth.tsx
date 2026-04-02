@@ -25,7 +25,7 @@ export function useAuth() {
         throw caught;
       }
     },
-    staleTime: 10 * 60 * 1000,
+    staleTime: 60 * 1000,
     retry: false,
   });
 

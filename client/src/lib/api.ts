@@ -497,12 +497,6 @@ class ApiClient {
     return this.request(`/security/events${query ? `?${query}` : ''}`);
   }
 
-  async testSecurityConfig() {
-    return this.request('/security/test', {
-      method: 'POST',
-    });
-  }
-
   async getRateLimitStatus() {
     return this.request('/system/rate-limits');
   }
