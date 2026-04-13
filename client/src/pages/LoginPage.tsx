@@ -6,8 +6,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@modl-gg/shared-web/components/ui/button';
 import { Input } from '@modl-gg/shared-web/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@modl-gg/shared-web/components/ui/card';
-import { Alert, AlertDescription } from '@modl-gg/shared-web/components/ui/alert';
-import { Mail, Lock, AlertCircle } from 'lucide-react';
+import { StatusBanner } from '@modl-gg/shared-web/components/ui/status-banner';
+import { Mail, Lock } from 'lucide-react';
 import { MODL } from '@modl-gg/shared-web';
 
 const emailSchema = z.object({
@@ -80,14 +80,10 @@ export default function LoginPage() {
         </CardHeader>
         
         <CardContent className="space-y-4">
-          {/* Error Display */}
           {(requestCodeError || loginError) && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                {(requestCodeError as any)?.message || (loginError as any)?.message || 'An error occurred'}
-              </AlertDescription>
-            </Alert>
+            <StatusBanner variant="error">
+              {(requestCodeError as any)?.message || (loginError as any)?.message || 'An error occurred'}
+            </StatusBanner>
           )}
 
           {step === 'email' ? (
