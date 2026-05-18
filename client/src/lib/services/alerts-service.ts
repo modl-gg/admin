@@ -37,11 +37,13 @@ export interface AlertPayload {
 }
 
 function toSeverity(value: unknown): SystemAlertSeverity {
-  return value === 'WARNING' || value === 'CRITICAL' ? value : 'BASIC';
+  const normalized = typeof value === 'string' ? value.trim().toUpperCase() : '';
+  return normalized === 'WARNING' || normalized === 'CRITICAL' ? normalized : 'BASIC';
 }
 
 function toAudience(value: unknown): SystemAlertAudience {
-  return value === 'SUPER_ADMINS_ONLY' ? value : 'ALL_PANEL_USERS';
+  const normalized = typeof value === 'string' ? value.trim().toUpperCase() : '';
+  return normalized === 'SUPER_ADMINS_ONLY' ? normalized : 'ALL_PANEL_USERS';
 }
 
 function mapAlert(raw: RawSystemAlert): SystemAlert {

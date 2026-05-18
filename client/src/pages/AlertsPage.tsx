@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Badge } from '@modl-gg/shared-web/components/ui/badge';
 import { Button } from '@modl-gg/shared-web/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@modl-gg/shared-web/components/ui/card';
@@ -73,8 +73,10 @@ export default function AlertsPage() {
   const [alerts, setAlerts] = useState<SystemAlert[]>([]);
   const [form, setForm] = useState<AlertFormState>(defaultFormState);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [minimumExpiresAt, setMinimumExpiresAt] = useState(() => toDatetimeLocal(new Date()));
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const loadSequence = useRef(0);
   const { toast } = useToast();
 
   const editingAlert = useMemo(
@@ -86,11 +88,37 @@ export default function AlertsPage() {
     loadAlerts();
   }, []);
 
+  useEffect(() => {
+    const updateMinimumExpiresAt = () => setMinimumExpiresAt(toDatetimeLocal(new Date()));
+    const interval = window.setInterval(updateMinimumExpiresAt, 30_000);
+
+    return () => window.clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (!editingId) {
+      return;
+    }
+
+    if (!alerts.some((alert) => alert.id === editingId)) {
+      resetForm();
+    }
+  }, [alerts, editingId]);
+
   const loadAlerts = async () => {
+    const requestId = loadSequence.current + 1;
+    loadSequence.current = requestId;
+
     try {
       setLoading(true);
-      setAlerts(await alertsService.getAlerts());
+      const loadedAlerts = await alertsService.getAlerts();
+      if (loadSequence.current === requestId) {
+        setAlerts(loadedAlerts);
+      }
     } catch (caught) {
+      if (loadSequence.current !== requestId) {
+        return;
+      }
       console.error('Error loading alerts:', caught);
       toast({
         title: 'Error',
@@ -98,7 +126,9 @@ export default function AlertsPage() {
         variant: 'destructive',
       });
     } finally {
-      setLoading(false);
+      if (loadSequence.current === requestId) {
+        setLoading(false);
+      }
     }
   };
 
@@ -114,10 +144,33 @@ export default function AlertsPage() {
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
+    const expiresAtMs = new Date(form.expiresAt).getTime();
+    const now = Date.now();
+    setMinimumExpiresAt(toDatetimeLocal(new Date(now)));
+
     if (!form.message.trim()) {
       toast({
         title: 'Error',
         description: 'Alert message is required',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!Number.isFinite(expiresAtMs) || expiresAtMs <= now) {
+      toast({
+        title: 'Error',
+        description: 'Expiry must be in the future',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (editingId && !editingAlert) {
+      resetForm();
+      toast({
+        title: 'Error',
+        description: 'The alert being edited is no longer available',
         variant: 'destructive',
       });
       return;
@@ -223,6 +276,7 @@ export default function AlertsPage() {
                   <Input
                     id="expiresAt"
                     type="datetime-local"
+                    min={minimumExpiresAt}
                     value={form.expiresAt}
                     onChange={(event) => setForm((current) => ({ ...current, expiresAt: event.target.value }))}
                     required
@@ -276,7 +330,6 @@ export default function AlertsPage() {
                           <p className="text-sm leading-relaxed whitespace-pre-wrap">{alert.message}</p>
                           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                             <span>Expires: {formatDate(alert.expiresAt)}</span>
-                            <span>Created by: {alert.createdBy ?? 'Unknown'}</span>
                             <span>Updated: {formatDate(alert.updatedAt)}</span>
                           </div>
                         </div>
