@@ -10,6 +10,7 @@ import MonitoringPage from '@/pages/MonitoringPage';
 import LoadingPage from '@/pages/LoadingPage';
 import AnalyticsPage from '@/pages/AnalyticsPage';
 import SystemPromptsPage from '@/pages/SystemPromptsPage';
+import AlertsPage from '@/pages/AlertsPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -46,6 +47,7 @@ function AppRoutes() {
           <Route path="/monitoring" component={MonitoringPage} />
           <Route path="/analytics" component={AnalyticsPage} />
           <Route path="/prompts" component={SystemPromptsPage} />
+          <Route path="/alerts" component={AlertsPage} />
           <Route>
             <Redirect to="/" />
           </Route>

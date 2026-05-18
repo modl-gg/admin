@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'wouter';
-import { LayoutDashboard, Server, Activity, BarChart3, Sparkles, LogOut } from 'lucide-react';
+import { LayoutDashboard, Server, Activity, BarChart3, Sparkles, Bell, LogOut } from 'lucide-react';
 import { Button } from '@modl-gg/shared-web/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import Logo from '@/components/Logo';
@@ -10,6 +10,7 @@ const navItems = [
   { href: '/monitoring', label: 'Monitoring', icon: Activity },
   { href: '/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/prompts', label: 'AI Prompts', icon: Sparkles },
+  { href: '/alerts', label: 'Alerts', icon: Bell },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
