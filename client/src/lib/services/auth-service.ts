@@ -23,6 +23,7 @@ interface SessionPayload {
 interface LoginPayload {
   email?: unknown;
   lastActivityAt?: unknown;
+  isAuthenticated?: boolean;
 }
 
 function mapSessionPayload(payload: SessionPayload): AdminSession {
@@ -63,7 +64,7 @@ export const authService = {
       email: typeof data.email === 'string' ? data.email : email,
       lastActivityAt: normalizeDateValue(data.lastActivityAt),
       loggedInIps: [],
-      isAuthenticated: true,
+      isAuthenticated: data.isAuthenticated ?? true,
     };
   },
 
