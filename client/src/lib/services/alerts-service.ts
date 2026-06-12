@@ -1,5 +1,5 @@
 import { requestJsonRaw } from '@/lib/api';
-import { normalizeDateValue, unwrapEnvelope } from '@/lib/api-contracts/common';
+import { isRecord, normalizeEpochMillisValue, toEpochMillisString } from '@/lib/api-contracts/common';
 
 export type SystemAlertSeverity = 'BASIC' | 'WARNING' | 'CRITICAL';
 export type SystemAlertAudience = 'ALL_PANEL_USERS' | 'SUPER_ADMINS_ONLY';
@@ -54,36 +54,43 @@ function mapAlert(raw: RawSystemAlert): SystemAlert {
     message: typeof raw.message === 'string' ? raw.message : '',
     severity: toSeverity(raw.severity),
     audience: toAudience(raw.audience),
-    expiresAt: normalizeDateValue(raw.expiresAt),
-    createdAt: normalizeDateValue(raw.createdAt),
-    updatedAt: normalizeDateValue(raw.updatedAt),
+    expiresAt: normalizeEpochMillisValue(raw.expiresAt),
+    createdAt: normalizeEpochMillisValue(raw.createdAt),
+    updatedAt: normalizeEpochMillisValue(raw.updatedAt),
     createdBy: typeof raw.createdBy === 'string' ? raw.createdBy : undefined,
     updatedBy: typeof raw.updatedBy === 'string' ? raw.updatedBy : undefined,
+  };
+}
+
+function toRequestBody(payload: AlertPayload): Record<string, unknown> {
+  return {
+    message: payload.message,
+    severity: payload.severity,
+    audience: payload.audience,
+    expiresAt: toEpochMillisString(payload.expiresAt) ?? '0',
   };
 }
 
 export const alertsService = {
   async getAlerts(): Promise<SystemAlert[]> {
     const raw = await requestJsonRaw<unknown>('/v1/admin/alerts');
-    const { data } = unwrapEnvelope<RawSystemAlert[]>(raw, 'admin alerts');
-    return Array.isArray(data) ? data.map(mapAlert) : [];
+    const items = isRecord(raw) && Array.isArray(raw.items) ? (raw.items as RawSystemAlert[]) : [];
+    return items.map(mapAlert);
   },
 
   async createAlert(payload: AlertPayload): Promise<SystemAlert> {
-    const raw = await requestJsonRaw<unknown>('/v1/admin/alerts', {
+    const raw = await requestJsonRaw<RawSystemAlert>('/v1/admin/alerts', {
       method: 'POST',
-      body: payload,
+      body: toRequestBody(payload),
     });
-    const { data } = unwrapEnvelope<RawSystemAlert>(raw, 'admin create alert');
-    return mapAlert(data);
+    return mapAlert(raw);
   },
 
   async updateAlert(id: string, payload: AlertPayload): Promise<SystemAlert> {
-    const raw = await requestJsonRaw<unknown>(`/v1/admin/alerts/${id}`, {
+    const raw = await requestJsonRaw<RawSystemAlert>(`/v1/admin/alerts/${id}`, {
       method: 'PUT',
-      body: payload,
+      body: toRequestBody(payload),
     });
-    const { data } = unwrapEnvelope<RawSystemAlert>(raw, 'admin update alert');
-    return mapAlert(data);
+    return mapAlert(raw);
   },
 };

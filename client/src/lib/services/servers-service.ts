@@ -196,6 +196,21 @@ function normalizeSubscriptionStatus(value: unknown): SubscriptionStatus | undef
     : undefined;
 }
 
+function toOptionalCount(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string' && /^-?\d+$/.test(value)) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return undefined;
+}
+
 function ensureServerId(value: RawServer): string {
   if (typeof value.id === 'string') {
     return value.id;
@@ -219,8 +234,8 @@ function mapServerListItem(raw: RawServer): AdminServerListItem {
     provisioningStatus: normalizeProvisioningStatus(raw.provisioningStatus),
     createdAt: normalizeDateValue(raw.createdAt),
     updatedAt: normalizeDateValue(raw.updatedAt),
-    userCount: typeof raw.userCount === 'number' ? raw.userCount : undefined,
-    ticketCount: typeof raw.ticketCount === 'number' ? raw.ticketCount : undefined,
+    userCount: toOptionalCount(raw.userCount),
+    ticketCount: toOptionalCount(raw.ticketCount),
     lastActivityAt: normalizeDateValue(raw.lastActivityAt),
   };
 }

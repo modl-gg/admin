@@ -87,6 +87,26 @@ export function normalizeDateValue(value: unknown): string | undefined {
   return parsed.toISOString();
 }
 
+export function normalizeEpochMillisValue(value: unknown): string | undefined {
+  let millis: number | undefined;
+
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    millis = value;
+  } else if (typeof value === 'string' && /^-?\d+$/.test(value)) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      millis = parsed;
+    }
+  }
+
+  if (millis === undefined || millis <= 0) {
+    return undefined;
+  }
+
+  const date = new Date(millis);
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+}
+
 export function normalizeStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) {
     return [];

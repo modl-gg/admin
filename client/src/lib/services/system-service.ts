@@ -56,11 +56,8 @@ export interface MaintenanceStatus {
   message: string;
 }
 
-export type PromptStrictnessLevel = 'lenient' | 'standard' | 'strict';
-
 export interface SystemPrompt {
   id: string;
-  strictnessLevel: PromptStrictnessLevel;
   prompt: string;
   isActive: boolean;
   createdAt?: string;
@@ -70,24 +67,10 @@ export interface SystemPrompt {
 interface RawSystemPrompt {
   id?: unknown;
   _id?: unknown;
-  strictnessLevel?: unknown;
   prompt?: unknown;
   isActive?: unknown;
   createdAt?: unknown;
   updatedAt?: unknown;
-}
-
-function toPromptStrictness(value: unknown): PromptStrictnessLevel {
-  if (typeof value !== 'string') {
-    return 'standard';
-  }
-
-  const normalized = value.trim().toLowerCase();
-  if (normalized === 'lenient' || normalized === 'strict') {
-    return normalized;
-  }
-
-  return 'standard';
 }
 
 function mapPrompt(raw: RawSystemPrompt): SystemPrompt {
@@ -95,16 +78,11 @@ function mapPrompt(raw: RawSystemPrompt): SystemPrompt {
 
   return {
     id,
-    strictnessLevel: toPromptStrictness(raw.strictnessLevel),
     prompt: typeof raw.prompt === 'string' ? raw.prompt : '',
     isActive: raw.isActive !== false,
     createdAt: normalizeDateValue(raw.createdAt),
     updatedAt: normalizeDateValue(raw.updatedAt),
   };
-}
-
-function toUpperStrictness(level: PromptStrictnessLevel): string {
-  return level.toUpperCase();
 }
 
 export const systemService = {
@@ -149,16 +127,14 @@ export const systemService = {
     return message ?? 'Service restart requested';
   },
 
-  async getSystemPrompts(): Promise<SystemPrompt[]> {
+  async getSystemPrompt(): Promise<SystemPrompt> {
     const raw = await requestJsonRaw<unknown>('/v1/admin/system/prompts');
-    const { data } = unwrapEnvelope<unknown>(raw, 'admin system prompts');
-
-    const prompts = Array.isArray(data) ? (data as RawSystemPrompt[]) : [];
-    return prompts.map(mapPrompt);
+    const { data } = unwrapEnvelope<RawSystemPrompt>(raw, 'admin system prompt');
+    return mapPrompt(data);
   },
 
-  async updateSystemPrompt(strictnessLevel: PromptStrictnessLevel, prompt: string): Promise<SystemPrompt> {
-    const raw = await requestJsonRaw<unknown>(`/v1/admin/system/prompts/${toUpperStrictness(strictnessLevel)}`, {
+  async updateSystemPrompt(prompt: string): Promise<SystemPrompt> {
+    const raw = await requestJsonRaw<unknown>('/v1/admin/system/prompts', {
       method: 'PUT',
       body: { prompt },
     });
@@ -167,8 +143,8 @@ export const systemService = {
     return mapPrompt(data);
   },
 
-  async resetSystemPrompt(strictnessLevel: PromptStrictnessLevel): Promise<SystemPrompt> {
-    const raw = await requestJsonRaw<unknown>(`/v1/admin/system/prompts/${toUpperStrictness(strictnessLevel)}/reset`, {
+  async resetSystemPrompt(): Promise<SystemPrompt> {
+    const raw = await requestJsonRaw<unknown>('/v1/admin/system/prompts/reset', {
       method: 'POST',
     });
 
