@@ -129,7 +129,7 @@ interface RawUsagePayload {
 }
 
 
-function normalizeServerPlan(value: unknown): ServerPlan {
+export function normalizeServerPlan(value: unknown): ServerPlan {
   if (typeof value !== 'string') {
     return 'free';
   }
@@ -138,7 +138,7 @@ function normalizeServerPlan(value: unknown): ServerPlan {
   return normalized === 'premium' ? 'premium' : 'free';
 }
 
-function normalizeProvisioningStatus(value: unknown): ProvisioningStatus {
+export function normalizeProvisioningStatus(value: unknown): ProvisioningStatus {
   if (typeof value !== 'string') {
     return 'pending';
   }
@@ -172,7 +172,7 @@ function normalizeCustomDomainStatus(value: unknown): CustomDomainStatus | undef
   return undefined;
 }
 
-function normalizeSubscriptionStatus(value: unknown): SubscriptionStatus | undefined {
+export function normalizeSubscriptionStatus(value: unknown): SubscriptionStatus | undefined {
   if (typeof value !== 'string') {
     return undefined;
   }

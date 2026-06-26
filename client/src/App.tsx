@@ -11,6 +11,9 @@ import LoadingPage from '@/pages/LoadingPage';
 import AnalyticsPage from '@/pages/AnalyticsPage';
 import SystemPromptsPage from '@/pages/SystemPromptsPage';
 import AlertsPage from '@/pages/AlertsPage';
+import BetaTestersPage from '@/pages/BetaTestersPage';
+import BetaTesterDetailPage from '@/pages/BetaTesterDetailPage';
+import { isStagingHost } from '@/lib/env';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -48,6 +51,12 @@ function AppRoutes() {
           <Route path="/analytics" component={AnalyticsPage} />
           <Route path="/prompts" component={SystemPromptsPage} />
           <Route path="/alerts" component={AlertsPage} />
+          {isStagingHost() && (
+            <Route path="/beta-testers" component={BetaTestersPage} />
+          )}
+          {isStagingHost() && (
+            <Route path="/beta-testers/:id" component={BetaTesterDetailPage} />
+          )}
           <Route>
             <Redirect to="/" />
           </Route>
