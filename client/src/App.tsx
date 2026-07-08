@@ -11,6 +11,7 @@ import LoadingPage from '@/pages/LoadingPage';
 import AnalyticsPage from '@/pages/AnalyticsPage';
 import SystemPromptsPage from '@/pages/SystemPromptsPage';
 import AlertsPage from '@/pages/AlertsPage';
+import SecurityPage from '@/pages/SecurityPage';
 import BetaTestersPage from '@/pages/BetaTestersPage';
 import BetaTesterDetailPage from '@/pages/BetaTesterDetailPage';
 import { isStagingHost } from '@/lib/env';
@@ -51,6 +52,7 @@ function AppRoutes() {
           <Route path="/analytics" component={AnalyticsPage} />
           <Route path="/prompts" component={SystemPromptsPage} />
           <Route path="/alerts" component={AlertsPage} />
+          <Route path="/security" component={SecurityPage} />
           {isStagingHost() && (
             <Route path="/beta-testers" component={BetaTestersPage} />
           )}

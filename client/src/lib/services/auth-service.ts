@@ -1,10 +1,13 @@
-import { requestJsonRaw } from '@/lib/api';
+import { create } from '@bufbuild/protobuf';
 import {
-  normalizeDateValue,
-  normalizeStringArray,
-  unwrapEnvelope,
-  unwrapEnvelopeOptionalData,
-} from '@/lib/api-contracts/common';
+  AdminAuthResponseSchema,
+  AdminLoginRequestSchema,
+  AdminLoginResponseSchema,
+  AdminRequestCodeRequestSchema,
+  AdminSessionResponseSchema,
+} from '@modl-gg/proto/modl/v1/auth_pb.ts';
+import { ProtoHttpError, protoFetch, protoSend, requireData } from '@/lib/proto-fetch';
+import { tsToIso } from '@/lib/proto-ui';
 
 export interface AdminSession {
   email?: string;
@@ -13,66 +16,64 @@ export interface AdminSession {
   isAuthenticated: boolean;
 }
 
-interface SessionPayload {
-  email?: unknown;
-  lastActivityAt?: unknown;
-  loggedInIps?: unknown;
-  isAuthenticated?: unknown;
-}
-
-interface LoginPayload {
-  email?: unknown;
-  lastActivityAt?: unknown;
-  isAuthenticated?: boolean;
-}
-
-function mapSessionPayload(payload: SessionPayload): AdminSession {
-  return {
-    email: typeof payload.email === 'string' ? payload.email : undefined,
-    lastActivityAt: normalizeDateValue(payload.lastActivityAt),
-    loggedInIps: normalizeStringArray(payload.loggedInIps),
-    isAuthenticated: payload.isAuthenticated === true,
-  };
-}
-
 export const authService = {
   async getSession(): Promise<AdminSession> {
-    const raw = await requestJsonRaw<unknown>('/v1/admin/auth/session');
-    const { data } = unwrapEnvelope<SessionPayload>(raw, 'admin auth session');
-    return mapSessionPayload(data);
+    try {
+      const response = await protoFetch(AdminSessionResponseSchema, '/v1/admin/auth/session');
+      const data = requireData(response.data, 'admin auth session');
+
+      return {
+        email: data.email || undefined,
+        lastActivityAt: tsToIso(data.lastActivityAt),
+        loggedInIps: data.loggedInIps,
+        isAuthenticated: data.isAuthenticated,
+      };
+    } catch (caught) {
+      if (caught instanceof ProtoHttpError && caught.status === 401) {
+        return {
+          isAuthenticated: false,
+          loggedInIps: [],
+        };
+      }
+
+      throw caught;
+    }
   },
 
   async requestCode(email: string): Promise<string> {
-    const raw = await requestJsonRaw<unknown>('/v1/admin/auth/request-code', {
-      method: 'POST',
-      body: { email },
-    });
+    const response = await protoSend(
+      'POST',
+      '/v1/admin/auth/request-code',
+      AdminRequestCodeRequestSchema,
+      create(AdminRequestCodeRequestSchema, { email }),
+      AdminAuthResponseSchema,
+    );
 
-    const { message } = unwrapEnvelopeOptionalData<unknown>(raw, 'admin auth request code');
-    return message ?? 'Verification code requested';
+    return response.message || 'Verification code requested';
   },
 
   async login(email: string, code: string): Promise<AdminSession> {
-    const raw = await requestJsonRaw<unknown>('/v1/admin/auth/login', {
-      method: 'POST',
-      body: { email, code },
-    });
+    const response = await protoSend(
+      'POST',
+      '/v1/admin/auth/login',
+      AdminLoginRequestSchema,
+      create(AdminLoginRequestSchema, { email, code }),
+      AdminLoginResponseSchema,
+    );
 
-    const { data } = unwrapEnvelope<LoginPayload>(raw, 'admin auth login');
+    const data = requireData(response.data, 'admin auth login');
 
     return {
-      email: typeof data.email === 'string' ? data.email : email,
-      lastActivityAt: normalizeDateValue(data.lastActivityAt),
+      email: data.email || email,
+      lastActivityAt: tsToIso(data.lastActivityAt),
       loggedInIps: [],
-      isAuthenticated: data.isAuthenticated ?? true,
+      isAuthenticated: true,
     };
   },
 
   async logout(): Promise<void> {
-    const raw = await requestJsonRaw<unknown>('/v1/admin/auth/logout', {
+    await protoFetch(AdminAuthResponseSchema, '/v1/admin/auth/logout', {
       method: 'POST',
     });
-
-    unwrapEnvelopeOptionalData<unknown>(raw, 'admin auth logout');
   },
 };

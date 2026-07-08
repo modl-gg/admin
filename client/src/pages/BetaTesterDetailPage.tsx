@@ -38,11 +38,11 @@ import {
   KeyRound,
   History,
 } from 'lucide-react';
-import { betaTestersService } from '@/lib/services/beta-testers-service';
 import {
+  betaTestersService,
   type BetaAuditEntry,
   type BetaTesterRecord,
-} from '@/lib/api-contracts/beta-testers';
+} from '@/lib/services/beta-testers-service';
 import { formatBytes, formatDate, formatDateRelative } from '@/lib/utils';
 
 function formatGigabytes(value: number): string {

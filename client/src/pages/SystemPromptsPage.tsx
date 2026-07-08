@@ -3,9 +3,21 @@ import { Button } from '@modl-gg/shared-web/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@modl-gg/shared-web/components/ui/card';
 import { Textarea } from '@modl-gg/shared-web/components/ui/textarea';
 import { Badge } from '@modl-gg/shared-web/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@modl-gg/shared-web/components/ui/alert-dialog';
 import { useToast } from '@modl-gg/shared-web/hooks/use-toast';
 import { RefreshCw, RotateCcw, Save, Brain } from 'lucide-react';
 import { systemService, type SystemPrompt } from '@/lib/services/system-service';
+import { useSingleFlight } from '@/hooks/useSingleFlight';
 
 export default function SystemPromptsPage() {
   const [prompt, setPrompt] = useState<SystemPrompt | null>(null);
@@ -24,7 +36,7 @@ export default function SystemPromptsPage() {
       setLoading(true);
       const loadedPrompt = await systemService.getSystemPrompt();
       setPrompt(loadedPrompt);
-      setEditedPrompt(loadedPrompt.prompt);
+      setEditedPrompt(loadedPrompt?.prompt ?? '');
     } catch (caught) {
       console.error('Error loading prompt:', caught);
       toast({
@@ -37,7 +49,7 @@ export default function SystemPromptsPage() {
     }
   };
 
-  const savePrompt = async () => {
+  const savePrompt = useSingleFlight(async () => {
     if (!editedPrompt.trim()) {
       toast({
         title: 'Error',
@@ -66,13 +78,9 @@ export default function SystemPromptsPage() {
     } finally {
       setSaving(false);
     }
-  };
+  });
 
-  const resetPrompt = async () => {
-    if (!confirm('Are you sure you want to reset the prompt to its default value? This action cannot be undone.')) {
-      return;
-    }
-
+  const resetPrompt = useSingleFlight(async () => {
     try {
       setResetting(true);
       const reset = await systemService.resetSystemPrompt();
@@ -92,7 +100,7 @@ export default function SystemPromptsPage() {
     } finally {
       setResetting(false);
     }
-  };
+  });
 
   const hasUnsavedChanges = (prompt?.prompt ?? '') !== editedPrompt;
   const isLoadingState = saving || resetting;
@@ -144,9 +152,13 @@ export default function SystemPromptsPage() {
               />
             </div>
 
-            {prompt && (
+            {prompt ? (
               <div className="text-xs text-muted-foreground">
                 Last updated: {prompt.updatedAt ? new Date(prompt.updatedAt).toLocaleString() : 'Unknown'}
+              </div>
+            ) : (
+              <div className="text-xs text-muted-foreground">
+                No system prompt is configured yet. Write one and save it, or reset to load the default prompt.
               </div>
             )}
 
@@ -164,19 +176,34 @@ export default function SystemPromptsPage() {
                 Save Changes
               </Button>
 
-              <Button
-                variant="outline"
-                onClick={resetPrompt}
-                disabled={isLoadingState}
-                className="flex items-center gap-2"
-              >
-                {resetting ? (
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                ) : (
-                  <RotateCcw className="h-4 w-4" />
-                )}
-                Reset to Default
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    disabled={isLoadingState}
+                    className="flex items-center gap-2"
+                  >
+                    {resetting ? (
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RotateCcw className="h-4 w-4" />
+                    )}
+                    Reset to Default
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Reset prompt to default?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This replaces the current moderation prompt with the built-in default. Any unsaved edits are discarded. This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => resetPrompt()}>Confirm Reset</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
 
               <Button
                 variant="ghost"

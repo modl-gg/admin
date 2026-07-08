@@ -50,10 +50,10 @@ import {
   Ban,
   Trash2,
 } from 'lucide-react';
-import { betaTestersService } from '@/lib/services/beta-testers-service';
-import { type BetaTesterRecord } from '@/lib/api-contracts/beta-testers';
+import { betaTestersService, type BetaTesterRecord } from '@/lib/services/beta-testers-service';
 import { CreateBetaTesterModal } from '@/components/CreateBetaTesterModal';
-import { formatDate } from '@/lib/utils';
+import { describeError, formatDate } from '@/lib/utils';
+import { useSingleFlight } from '@/hooks/useSingleFlight';
 
 type RowActionType = 'reset' | 'revoke';
 
@@ -131,7 +131,7 @@ export default function BetaTestersPage() {
     onError: (mutationError) => {
       toast({
         title: 'Reset failed',
-        description: mutationError instanceof Error ? mutationError.message : 'Unexpected error',
+        description: describeError(mutationError, 'Unexpected error'),
         variant: 'destructive',
       });
     },
@@ -150,7 +150,7 @@ export default function BetaTestersPage() {
     onError: (mutationError) => {
       toast({
         title: 'Revoke failed',
-        description: mutationError instanceof Error ? mutationError.message : 'Unexpected error',
+        description: describeError(mutationError, 'Unexpected error'),
         variant: 'destructive',
       });
     },
@@ -173,7 +173,7 @@ export default function BetaTestersPage() {
     onError: (mutationError) => {
       toast({
         title: 'Reset all failed',
-        description: mutationError instanceof Error ? mutationError.message : 'Unexpected error',
+        description: describeError(mutationError, 'Unexpected error'),
         variant: 'destructive',
       });
     },
@@ -186,17 +186,19 @@ export default function BetaTestersPage() {
   const isRowActionPending = resetMutation.isPending || revokeMutation.isPending;
   const isResetAction = rowAction?.type === 'reset';
 
-  const confirmRowAction = () => {
+  const confirmRowAction = useSingleFlight(async () => {
     if (!rowAction) {
       return;
     }
 
     if (rowAction.type === 'reset') {
-      resetMutation.mutate(rowAction.record.id);
+      await resetMutation.mutateAsync(rowAction.record.id);
     } else {
-      revokeMutation.mutate(rowAction.record.id);
+      await revokeMutation.mutateAsync(rowAction.record.id);
     }
-  };
+  });
+
+  const confirmResetAll = useSingleFlight(() => resetAllMutation.mutateAsync());
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -559,7 +561,7 @@ export default function BetaTestersPage() {
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
-                resetAllMutation.mutate();
+                confirmResetAll();
               }}
               disabled={
                 resetAllMutation.isPending || resetAllConfirm.trim() !== RESET_ALL_CONFIRM_PHRASE

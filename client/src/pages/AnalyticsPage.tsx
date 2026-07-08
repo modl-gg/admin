@@ -10,8 +10,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@modl-gg/shared-web/components/ui/select';
-import { apiClient, ActivitySnapshot } from '@/lib/api';
-import { analyticsService, AnalyticsData, AnalyticsRange } from '@/lib/services/analytics-service';
+import { analyticsService } from '@/lib/services/analytics-service';
+import type { ActivitySnapshot, AnalyticsData, AnalyticsRange } from '@/lib/services/analytics-service';
 import {
   BarChart,
   Bar,
@@ -41,6 +41,10 @@ import {
 
 const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7c7c', '#8dd1e1', '#d084d0'];
 
+function formatSnapshotTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
 function EmptyChart({ message }: { message: string }) {
   return (
     <div className="flex flex-col items-center justify-center h-[300px] text-muted-foreground">
@@ -62,26 +66,30 @@ export default function AnalyticsPage() {
 
   const { data: activityData = [] } = useQuery<ActivitySnapshot[]>({
     queryKey: ['activitySnapshots', dateRange],
-    queryFn: async () => {
-      const response = await apiClient.getActivitySnapshots(dateRange);
-      return response.data ?? [];
-    },
+    queryFn: () => analyticsService.getActivitySnapshots(dateRange),
     refetchInterval: 5 * 60 * 1000,
   });
 
   const formattedServerActivity = useMemo(() =>
     (analytics?.usageStatistics.serverActivity ?? []).map(p => ({
       ...p,
-      date: new Date(p.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      date: formatSnapshotTime(p.date),
     })),
   [analytics]);
 
   const formattedPlayerActivity = useMemo(() =>
     (analytics?.usageStatistics.playerActivity ?? []).map(p => ({
       ...p,
-      date: new Date(p.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      date: formatSnapshotTime(p.date),
     })),
   [analytics]);
+
+  const formattedActivityData = useMemo(() =>
+    activityData.map(p => ({
+      ...p,
+      date: formatSnapshotTime(p.date),
+    })),
+  [activityData]);
 
   const serverDistributions = useMemo(() => {
     const servers = analytics?.usageStatistics.liveServers ?? [];
@@ -279,7 +287,7 @@ export default function AnalyticsPage() {
                 <EmptyChart message="No activity snapshots yet — data is collected hourly" />
               ) : (
                 <ResponsiveContainer width="100%" height={350}>
-                  <AreaChart data={activityData}>
+                  <AreaChart data={formattedActivityData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="date" />
                     <YAxis yAxisId="left" />
@@ -330,7 +338,7 @@ export default function AnalyticsPage() {
                                 fill="#8884d8"
                                 dataKey="value"
                             >
-                                {analytics.serverMetrics.byPlan.map((entry, index) => (
+                                {analytics.serverMetrics.byPlan.map((_entry, index) => (
                                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                 ))}
                             </Pie>

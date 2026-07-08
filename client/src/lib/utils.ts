@@ -53,6 +53,10 @@ export function formatDateRelative(date: string | Date): string {
   }
 }
 
+export function describeError(caught: unknown, fallback: string): string {
+  return caught instanceof Error && caught.message.trim().length > 0 ? caught.message : fallback;
+}
+
 export function capitalizeFirst(str: string) {
   return str.charAt(0).toUpperCase() + str.slice(1)
 }

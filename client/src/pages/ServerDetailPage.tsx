@@ -13,7 +13,6 @@ import {
 import { formatDate, formatDateRelative, formatBytes } from '@/lib/utils';
 import {
   Server,
-  Globe,
   Database,
   Activity,
   AlertTriangle,

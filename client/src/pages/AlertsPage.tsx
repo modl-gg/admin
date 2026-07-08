@@ -1,4 +1,5 @@
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { FormEvent } from 'react';
 import { Badge } from '@modl-gg/shared-web/components/ui/badge';
 import { Button } from '@modl-gg/shared-web/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@modl-gg/shared-web/components/ui/card';
@@ -13,6 +14,7 @@ import {
   type SystemAlertAudience,
   type SystemAlertSeverity,
 } from '@/lib/services/alerts-service';
+import { useSingleFlight } from '@/hooks/useSingleFlight';
 
 const severityLabels: Record<SystemAlertSeverity, string> = {
   BASIC: 'Basic',
@@ -142,8 +144,7 @@ export default function AlertsPage() {
     setForm(toFormState(alert));
   };
 
-  const handleSubmit = async (event: FormEvent) => {
-    event.preventDefault();
+  const submitAlert = useSingleFlight(async () => {
     const expiresAtMs = new Date(form.expiresAt).getTime();
     const now = Date.now();
     setMinimumExpiresAt(toDatetimeLocal(new Date(now)));
@@ -199,6 +200,11 @@ export default function AlertsPage() {
     } finally {
       setSaving(false);
     }
+  });
+
+  const handleSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    submitAlert();
   };
 
   const isExpired = (alert: SystemAlert) => alert.expiresAt ? new Date(alert.expiresAt).getTime() <= Date.now() : true;

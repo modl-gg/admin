@@ -82,7 +82,7 @@ export default function LoginPage() {
         <CardContent className="space-y-4">
           {(requestCodeError || loginError) && (
             <StatusBanner variant="error">
-              {(requestCodeError as any)?.message || (loginError as any)?.message || 'An error occurred'}
+              {requestCodeError?.message || loginError?.message || 'An error occurred'}
             </StatusBanner>
           )}
 

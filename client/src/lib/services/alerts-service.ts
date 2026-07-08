@@ -1,5 +1,13 @@
-import { requestJsonRaw } from '@/lib/api';
-import { isRecord, normalizeEpochMillisValue, toEpochMillisString } from '@/lib/api-contracts/common';
+import { create } from '@bufbuild/protobuf';
+import {
+  AdminSystemAlertResponseSchema,
+  AdminSystemAlertsResponseSchema,
+  CreateSystemAlertRequestSchema,
+  UpdateSystemAlertRequestSchema,
+  type AdminSystemAlertResponse,
+} from '@modl-gg/proto/modl/v1/alert_pb.ts';
+import { protoFetch, protoSend } from '@/lib/proto-fetch';
+import { millisToIso, toEpochMillisString } from '@/lib/proto-ui';
 
 export type SystemAlertSeverity = 'BASIC' | 'WARNING' | 'CRITICAL';
 export type SystemAlertAudience = 'ALL_PANEL_USERS' | 'SUPER_ADMINS_ONLY';
@@ -12,21 +20,6 @@ export interface SystemAlert {
   expiresAt?: string;
   createdAt?: string;
   updatedAt?: string;
-  createdBy?: string;
-  updatedBy?: string;
-}
-
-interface RawSystemAlert {
-  id?: unknown;
-  _id?: unknown;
-  message?: unknown;
-  severity?: unknown;
-  audience?: unknown;
-  expiresAt?: unknown;
-  createdAt?: unknown;
-  updatedAt?: unknown;
-  createdBy?: unknown;
-  updatedBy?: unknown;
 }
 
 export interface AlertPayload {
@@ -36,61 +29,68 @@ export interface AlertPayload {
   expiresAt: string;
 }
 
-function toSeverity(value: unknown): SystemAlertSeverity {
-  const normalized = typeof value === 'string' ? value.trim().toUpperCase() : '';
+function toSeverity(value: string): SystemAlertSeverity {
+  const normalized = value.trim().toUpperCase();
   return normalized === 'WARNING' || normalized === 'CRITICAL' ? normalized : 'BASIC';
 }
 
-function toAudience(value: unknown): SystemAlertAudience {
-  const normalized = typeof value === 'string' ? value.trim().toUpperCase() : '';
-  return normalized === 'SUPER_ADMINS_ONLY' ? normalized : 'ALL_PANEL_USERS';
+function toAudience(value: string): SystemAlertAudience {
+  return value.trim().toUpperCase() === 'SUPER_ADMINS_ONLY' ? 'SUPER_ADMINS_ONLY' : 'ALL_PANEL_USERS';
 }
 
-function mapAlert(raw: RawSystemAlert): SystemAlert {
-  const id = typeof raw.id === 'string' ? raw.id : (typeof raw._id === 'string' ? raw._id : '');
-
+function mapAlert(alert: AdminSystemAlertResponse): SystemAlert {
   return {
-    id,
-    message: typeof raw.message === 'string' ? raw.message : '',
-    severity: toSeverity(raw.severity),
-    audience: toAudience(raw.audience),
-    expiresAt: normalizeEpochMillisValue(raw.expiresAt),
-    createdAt: normalizeEpochMillisValue(raw.createdAt),
-    updatedAt: normalizeEpochMillisValue(raw.updatedAt),
-    createdBy: typeof raw.createdBy === 'string' ? raw.createdBy : undefined,
-    updatedBy: typeof raw.updatedBy === 'string' ? raw.updatedBy : undefined,
+    id: alert.id,
+    message: alert.message,
+    severity: toSeverity(alert.severity),
+    audience: toAudience(alert.audience),
+    expiresAt: millisToIso(alert.expiresAt),
+    createdAt: millisToIso(alert.createdAt),
+    updatedAt: millisToIso(alert.updatedAt),
   };
 }
 
-function toRequestBody(payload: AlertPayload): Record<string, unknown> {
-  return {
-    message: payload.message,
-    severity: payload.severity,
-    audience: payload.audience,
-    expiresAt: toEpochMillisString(payload.expiresAt) ?? '0',
-  };
+function toExpiresAtMillis(value: string): bigint {
+  return BigInt(toEpochMillisString(value) ?? '0');
 }
 
 export const alertsService = {
   async getAlerts(): Promise<SystemAlert[]> {
-    const raw = await requestJsonRaw<unknown>('/v1/admin/alerts');
-    const items = isRecord(raw) && Array.isArray(raw.items) ? (raw.items as RawSystemAlert[]) : [];
-    return items.map(mapAlert);
+    const response = await protoFetch(AdminSystemAlertsResponseSchema, '/v1/admin/alerts');
+    return response.items.map(mapAlert);
   },
 
   async createAlert(payload: AlertPayload): Promise<SystemAlert> {
-    const raw = await requestJsonRaw<RawSystemAlert>('/v1/admin/alerts', {
-      method: 'POST',
-      body: toRequestBody(payload),
-    });
-    return mapAlert(raw);
+    const created = await protoSend(
+      'POST',
+      '/v1/admin/alerts',
+      CreateSystemAlertRequestSchema,
+      create(CreateSystemAlertRequestSchema, {
+        message: payload.message,
+        severity: payload.severity,
+        audience: payload.audience,
+        expiresAt: toExpiresAtMillis(payload.expiresAt),
+      }),
+      AdminSystemAlertResponseSchema,
+    );
+
+    return mapAlert(created);
   },
 
   async updateAlert(id: string, payload: AlertPayload): Promise<SystemAlert> {
-    const raw = await requestJsonRaw<RawSystemAlert>(`/v1/admin/alerts/${id}`, {
-      method: 'PUT',
-      body: toRequestBody(payload),
-    });
-    return mapAlert(raw);
+    const updated = await protoSend(
+      'PUT',
+      `/v1/admin/alerts/${id}`,
+      UpdateSystemAlertRequestSchema,
+      create(UpdateSystemAlertRequestSchema, {
+        message: payload.message,
+        severity: payload.severity,
+        audience: payload.audience,
+        expiresAt: toExpiresAtMillis(payload.expiresAt),
+      }),
+      AdminSystemAlertResponseSchema,
+    );
+
+    return mapAlert(updated);
   },
 };

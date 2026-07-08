@@ -17,6 +17,8 @@ import { z } from 'zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { FlaskConical } from 'lucide-react';
 import { betaTestersService } from '@/lib/services/beta-testers-service';
+import { useSingleFlight } from '@/hooks/useSingleFlight';
+import { describeError } from '@/lib/utils';
 
 const subdomainPattern = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/;
 
@@ -58,14 +60,6 @@ export function CreateBetaTesterModal({ isOpen, onClose }: CreateBetaTesterModal
     defaultValues,
   });
 
-  useEffect(() => {
-    if (isOpen) {
-      form.reset(defaultValues);
-    }
-  }, [isOpen, form]);
-
-  const subdomainPreview = form.watch('customDomain');
-
   const mutation = useMutation({
     mutationFn: (values: CreateBetaTesterFormValues) =>
       betaTestersService.createBetaTester(values),
@@ -77,18 +71,20 @@ export function CreateBetaTesterModal({ isOpen, onClose }: CreateBetaTesterModal
       });
       onClose();
     },
-    onError: (error) => {
-      toast({
-        title: 'Failed to create beta tester',
-        description: error instanceof Error ? error.message : 'Unexpected error',
-        variant: 'destructive',
-      });
-    },
   });
 
-  const onSubmit = (values: CreateBetaTesterFormValues) => {
-    mutation.mutate(values);
-  };
+  useEffect(() => {
+    if (isOpen) {
+      form.reset(defaultValues);
+      mutation.reset();
+    }
+  }, [isOpen]);
+
+  const subdomainPreview = form.watch('customDomain');
+
+  const onSubmit = useSingleFlight((values: CreateBetaTesterFormValues) =>
+    mutation.mutateAsync(values),
+  );
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -149,6 +145,15 @@ export function CreateBetaTesterModal({ isOpen, onClose }: CreateBetaTesterModal
               <p className="text-sm text-destructive">{form.formState.errors.adminEmail.message}</p>
             )}
           </div>
+
+          {mutation.isError && (
+            <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3">
+              <p className="text-sm font-medium text-destructive">Failed to create beta tester</p>
+              <p className="text-sm text-muted-foreground">
+                {describeError(mutation.error, 'Unexpected error')}
+              </p>
+            </div>
+          )}
 
           <DialogFooter>
             <Button type="button" variant="secondary" onClick={onClose}>

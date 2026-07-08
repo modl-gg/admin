@@ -3,9 +3,9 @@ import { QueryClient } from '@tanstack/react-query';
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: (failureCount, error: any) => {
+      retry: (failureCount, error: unknown) => {
         // Don't retry on 401 Unauthorized errors
-        if (error?.status === 401) {
+        if ((error as { status?: unknown } | null | undefined)?.status === 401) {
           return false;
         }
         // Retry up to 2 times for other errors

@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'wouter';
-import { LayoutDashboard, Server, Activity, BarChart3, Sparkles, Bell, FlaskConical, LogOut } from 'lucide-react';
+import { LayoutDashboard, Server, Activity, BarChart3, Sparkles, Bell, Shield, FlaskConical, LogOut } from 'lucide-react';
 import { Button } from '@modl-gg/shared-web/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { isStagingHost } from '@/lib/env';
@@ -12,6 +12,7 @@ const navItems = [
   { href: '/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/prompts', label: 'AI Prompts', icon: Sparkles },
   { href: '/alerts', label: 'Alerts', icon: Bell },
+  { href: '/security', label: 'Security', icon: Shield },
   ...(isStagingHost() ? [{ href: '/beta-testers', label: 'Beta Testing', icon: FlaskConical }] : []),
 ];
 
