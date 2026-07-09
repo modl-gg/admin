@@ -12,7 +12,7 @@ export function isRateLimitError(response: Response): boolean {
   return response.status === 429;
 }
 
-export async function handleRateLimitResponse(response: Response, currentPath?: string): Promise<void> {
+export async function handleRateLimitResponse(response: Response, _currentPath?: string): Promise<void> {
   try {
     const rateLimitData: RateLimitResponse = await response.json();
     const { toast } = await import('@modl-gg/shared-web/hooks/use-toast');

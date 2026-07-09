@@ -30,6 +30,7 @@ import {
 } from '@modl-gg/shared-web/components/ui/select';
 import { serversService, type AdminServerListItem } from '@/lib/services/servers-service';
 import { formatDate } from '@/lib/utils';
+import { normalizeProvisioningStatus, planLabel, provisioningStatusLabel } from '@/lib/server-labels';
 import {
   Server,
   Search,
@@ -122,27 +123,24 @@ export default function ServersPage() {
     if (!server.emailVerified) {
       return <Badge variant="warning">Unverified</Badge>;
     }
-    
-    switch (server.provisioningStatus) {
+
+    const label = provisioningStatusLabel(server.provisioningStatus);
+    switch (normalizeProvisioningStatus(server.provisioningStatus)) {
       case 'completed':
-        return <Badge variant="success">Active</Badge>;
+        return <Badge variant="success">{label}</Badge>;
       case 'pending':
       case 'in-progress':
-        return <Badge variant="info">Provisioning</Badge>;
+        return <Badge variant="info">{label}</Badge>;
       case 'failed':
-        return <Badge variant="destructive">Failed</Badge>;
+        return <Badge variant="destructive">{label}</Badge>;
       default:
-        return <Badge variant="outline">Unknown</Badge>;
+        return <Badge variant="outline">{label}</Badge>;
     }
   };
 
-  const getPlanBadge = (plan: string) => {
-    return plan === 'premium' ? (
-      <Badge variant="default">Premium</Badge>
-    ) : (
-      <Badge variant="outline">Free</Badge>
-    );
-  };
+  const getPlanBadge = (plan: string) => (
+    <Badge variant={plan === 'premium' ? 'default' : 'outline'}>{planLabel(plan)}</Badge>
+  );
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -284,7 +282,7 @@ export default function ServersPage() {
               ) : error ? (
                 <div className="text-center py-8">
                   <p className="text-destructive">Failed to load servers</p>
-                  <p className="text-sm text-muted-foreground">{(error as any)?.message}</p>
+                  <p className="text-sm text-muted-foreground">{error.message}</p>
                 </div>
               ) : sortedServers.length === 0 ? (
                 <div className="text-center py-12">

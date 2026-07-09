@@ -1,6 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ApiError } from '@/lib/api';
 import { authService, type AdminSession } from '@/lib/services/auth-service';
+
+const sessionQueryKey = ['auth', 'session'] as const;
+
+function loggedOutSession(): AdminSession {
+  return {
+    isAuthenticated: false,
+    loggedInIps: [],
+  };
+}
 
 export function useAuth() {
   const queryClient = useQueryClient();
@@ -10,22 +18,9 @@ export function useAuth() {
     isLoading,
     error,
   } = useQuery<AdminSession>({
-    queryKey: ['auth', 'session'],
-    queryFn: async () => {
-      try {
-        return await authService.getSession();
-      } catch (caught) {
-        if (caught instanceof ApiError && caught.status === 401) {
-          return {
-            isAuthenticated: false,
-            loggedInIps: [],
-          };
-        }
-
-        throw caught;
-      }
-    },
-    staleTime: 10 * 60 * 1000,
+    queryKey: sessionQueryKey,
+    queryFn: () => authService.getSession(),
+    staleTime: 60 * 1000,
     retry: false,
   });
 
@@ -39,7 +34,7 @@ export function useAuth() {
   const loginMutation = useMutation({
     mutationFn: ({ email, code }: { email: string; code: string }) => authService.login(email, code),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['auth', 'session'] });
+      queryClient.invalidateQueries({ queryKey: sessionQueryKey });
     },
     onError: (caught) => {
       console.error('Login failed:', caught);
@@ -48,12 +43,12 @@ export function useAuth() {
 
   const logoutMutation = useMutation({
     mutationFn: () => authService.logout(),
-    onSuccess: () => {
-      queryClient.clear();
-    },
     onError: (caught) => {
       console.error('Logout failed:', caught);
+    },
+    onSettled: () => {
       queryClient.clear();
+      queryClient.setQueryData<AdminSession>(sessionQueryKey, loggedOutSession());
     },
   });
 

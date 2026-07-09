@@ -1,5 +1,24 @@
-import { requestBlob, requestJsonRaw } from '@/lib/api';
-import { normalizeDateValue, parseNumber, toEpochMillisString, unwrapEnvelope } from '@/lib/api-contracts/common';
+import { create } from '@bufbuild/protobuf';
+import {
+  AdminMonitoringDashboardResponseSchema,
+  AdminMonitoringDeleteLogsResponseSchema,
+  AdminMonitoringHealthResponseSchema,
+  AdminMonitoringLogMetricsSchema,
+  AdminMonitoringLogWindowSchema,
+  AdminMonitoringLogsResponseSchema,
+  AdminMonitoringServerMetricsSchema,
+  AdminMonitoringSourcesResponseSchema,
+  AdminMonitoringSystemHealthSummarySchema,
+  AdminMonitoringSystemLogMutationResponseSchema,
+  AdminMonitoringUnresolvedLogsSchema,
+  DeleteLogsRequestSchema,
+  ResolveLogRequestSchema,
+  type AdminMonitoringHealthCheck,
+  type SystemLogResponse,
+} from '@modl-gg/proto/modl/v1/admin_pb.ts';
+import { requestBlob } from '@/lib/api';
+import { protoFetch, protoSend, requireData } from '@/lib/proto-fetch';
+import { mapPagination, toEpochMillisString, toNum, tsToIso } from '@/lib/proto-ui';
 
 export type LogLevel = 'info' | 'warning' | 'error' | 'critical';
 
@@ -86,42 +105,7 @@ export interface LogFilters {
   sortOrder?: 'asc' | 'desc';
 }
 
-interface RawLog {
-  id?: unknown;
-  _id?: unknown;
-  level?: unknown;
-  message?: unknown;
-  source?: unknown;
-  category?: unknown;
-  timestamp?: unknown;
-  serverId?: unknown;
-  metadata?: unknown;
-  resolved?: unknown;
-  resolvedBy?: unknown;
-  resolvedAt?: unknown;
-}
-
-interface RawLogsPayload {
-  logs?: unknown;
-  pagination?: {
-    page?: unknown;
-    limit?: unknown;
-    total?: unknown;
-    pages?: unknown;
-  };
-}
-
-interface RawLogSourcesPayload {
-  sources?: unknown;
-  categories?: unknown;
-}
-
-
-function toLogLevel(value: unknown): LogLevel {
-  if (typeof value !== 'string') {
-    return 'info';
-  }
-
+function toLogLevel(value: string): LogLevel {
   const normalized = value.toLowerCase();
   if (normalized === 'critical' || normalized === 'error' || normalized === 'warning') {
     return normalized;
@@ -130,37 +114,61 @@ function toLogLevel(value: unknown): LogLevel {
   return 'info';
 }
 
-function toStringArray(value: unknown): string[] {
-  if (!Array.isArray(value)) {
-    return [];
+function toCheckStatus(value: string): HealthCheck['checks'][number]['status'] {
+  const normalized = value.toLowerCase();
+  if (normalized === 'healthy' || normalized === 'degraded' || normalized === 'critical') {
+    return normalized;
   }
 
-  return value.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0);
+  return 'unknown';
 }
 
-function toRecord(value: unknown): Record<string, unknown> | undefined {
-  if (value && typeof value === 'object' && !Array.isArray(value)) {
-    return value as Record<string, unknown>;
+function toHealthStatus(value: string): HealthCheck['status'] {
+  const normalized = value.toLowerCase();
+  if (normalized === 'healthy' || normalized === 'critical') {
+    return normalized;
   }
 
-  return undefined;
+  return 'degraded';
 }
 
-function mapLog(raw: RawLog): SystemLog {
-  const id = typeof raw.id === 'string' ? raw.id : (typeof raw._id === 'string' ? raw._id : '');
+function toSystemHealthStatus(value: string): DashboardMetrics['systemHealth']['status'] {
+  const normalized = value.toLowerCase();
+  if (normalized === 'excellent' || normalized === 'good' || normalized === 'fair') {
+    return normalized;
+  }
 
+  return 'poor';
+}
+
+function toNonEmptyStrings(values: string[]): string[] {
+  return values.filter((entry) => entry.length > 0);
+}
+
+function mapLog(log: SystemLogResponse): SystemLog {
   return {
-    id,
-    level: toLogLevel(raw.level),
-    message: typeof raw.message === 'string' ? raw.message : '',
-    source: typeof raw.source === 'string' ? raw.source : 'unknown',
-    category: typeof raw.category === 'string' ? raw.category : undefined,
-    timestamp: normalizeDateValue(raw.timestamp) ?? '',
-    serverId: typeof raw.serverId === 'string' ? raw.serverId : undefined,
-    metadata: toRecord(raw.metadata),
-    resolved: raw.resolved === true,
-    resolvedBy: typeof raw.resolvedBy === 'string' ? raw.resolvedBy : undefined,
-    resolvedAt: normalizeDateValue(raw.resolvedAt),
+    id: log.id,
+    level: toLogLevel(log.level),
+    message: log.message,
+    source: log.source || 'unknown',
+    category: log.category,
+    timestamp: tsToIso(log.timestamp) ?? '',
+    serverId: log.serverId,
+    metadata: log.metadata,
+    resolved: log.resolved,
+    resolvedBy: log.resolvedBy,
+    resolvedAt: tsToIso(log.resolvedAt),
+  };
+}
+
+function mapHealthCheckEntry(check: AdminMonitoringHealthCheck): HealthCheck['checks'][number] {
+  return {
+    name: check.name,
+    status: toCheckStatus(check.status),
+    message: check.message ?? '',
+    responseTime: check.responseTime !== undefined ? toNum(check.responseTime) : undefined,
+    count: check.count !== undefined ? toNum(check.count) : undefined,
+    error: check.error,
   };
 }
 
@@ -194,88 +202,101 @@ function buildQuery(filters?: LogFilters): string {
 
 export const monitoringService = {
   async getDashboardMetrics(): Promise<DashboardMetrics> {
-    const raw = await requestJsonRaw<unknown>('/v1/admin/monitoring/dashboard');
-    const { data } = unwrapEnvelope<DashboardMetrics>(raw, 'admin monitoring dashboard');
+    const response = await protoFetch(AdminMonitoringDashboardResponseSchema, '/v1/admin/monitoring/dashboard');
+    const data = requireData(response.data, 'admin monitoring dashboard');
+
+    const servers = data.servers ?? create(AdminMonitoringServerMetricsSchema);
+    const logs = data.logs ?? create(AdminMonitoringLogMetricsSchema);
+    const last24h = logs.last24h ?? create(AdminMonitoringLogWindowSchema);
+    const unresolved = logs.unresolved ?? create(AdminMonitoringUnresolvedLogsSchema);
+    const systemHealth = data.systemHealth ?? create(AdminMonitoringSystemHealthSummarySchema);
 
     return {
-      ...data,
-      lastUpdated: normalizeDateValue(data.lastUpdated),
+      servers: {
+        total: toNum(servers.total),
+        active: toNum(servers.active),
+        pending: toNum(servers.pending),
+        failed: toNum(servers.failed),
+        recentRegistrations: toNum(servers.recentRegistrations),
+        concurrentServers: toNum(servers.concurrentServers),
+        concurrentPlayers: toNum(servers.concurrentPlayers),
+      },
+      logs: {
+        last24h: {
+          total: toNum(last24h.total),
+          critical: toNum(last24h.critical),
+          error: toNum(last24h.error),
+          warning: toNum(last24h.warning),
+        },
+        unresolved: {
+          critical: toNum(unresolved.critical),
+          error: toNum(unresolved.error),
+        },
+      },
+      systemHealth: {
+        score: systemHealth.score,
+        status: toSystemHealthStatus(systemHealth.status),
+      },
+      trends: data.trends,
+      lastUpdated: tsToIso(data.lastUpdated),
     };
   },
 
   async getSystemHealth(): Promise<HealthCheck> {
-    const raw = await requestJsonRaw<unknown>('/v1/admin/monitoring/health');
-    const { data } = unwrapEnvelope<HealthCheck>(raw, 'admin monitoring health');
+    const response = await protoFetch(AdminMonitoringHealthResponseSchema, '/v1/admin/monitoring/health');
+    const data = requireData(response.data, 'admin monitoring health');
 
     return {
-      ...data,
-      timestamp: normalizeDateValue(data.timestamp),
+      status: toHealthStatus(data.status),
+      checks: data.checks.map(mapHealthCheckEntry),
+      timestamp: tsToIso(data.timestamp),
     };
   },
 
   async getSystemLogs(filters?: LogFilters): Promise<LogsResponse> {
     const query = buildQuery(filters);
-    const raw = await requestJsonRaw<unknown>(`/v1/admin/monitoring/logs${query}`);
-    const { data } = unwrapEnvelope<RawLogsPayload>(raw, 'admin monitoring logs');
-
-    const rawLogs = Array.isArray(data.logs) ? (data.logs as RawLog[]) : [];
-    const paginationRaw = data.pagination ?? {};
+    const response = await protoFetch(AdminMonitoringLogsResponseSchema, `/v1/admin/monitoring/logs${query}`);
+    const data = requireData(response.data, 'admin monitoring logs');
 
     return {
-      logs: rawLogs.map(mapLog),
-      pagination: {
-        page: parseNumber(paginationRaw.page, 1),
-        limit: parseNumber(paginationRaw.limit, 50),
-        total: parseNumber(paginationRaw.total, 0),
-        pages: parseNumber(paginationRaw.pages, 0),
-      },
+      logs: data.logs.map(mapLog),
+      pagination: mapPagination(data.pagination, 50),
     };
   },
 
   async getLogSources(): Promise<{ sources: string[]; categories: string[] }> {
-    const raw = await requestJsonRaw<unknown>('/v1/admin/monitoring/sources');
-    const { data } = unwrapEnvelope<RawLogSourcesPayload>(raw, 'admin monitoring sources');
+    const response = await protoFetch(AdminMonitoringSourcesResponseSchema, '/v1/admin/monitoring/sources');
+    const data = requireData(response.data, 'admin monitoring sources');
 
     return {
-      sources: toStringArray(data.sources),
-      categories: toStringArray(data.categories),
+      sources: toNonEmptyStrings(data.sources),
+      categories: toNonEmptyStrings(data.categories),
     };
   },
 
   async resolveLog(logId: string, resolvedBy = 'admin'): Promise<SystemLog> {
-    const raw = await requestJsonRaw<unknown>(`/v1/admin/monitoring/logs/${logId}/resolve`, {
-      method: 'PUT',
-      body: { resolvedBy },
-    });
+    const response = await protoSend(
+      'PUT',
+      `/v1/admin/monitoring/logs/${logId}/resolve`,
+      ResolveLogRequestSchema,
+      create(ResolveLogRequestSchema, { resolvedBy }),
+      AdminMonitoringSystemLogMutationResponseSchema,
+    );
 
-    const { data } = unwrapEnvelope<RawLog>(raw, 'admin monitoring resolve log');
-    return mapLog(data);
-  },
-
-  async createLog(logData: {
-    level: LogLevel;
-    message: string;
-    source: string;
-    category?: string;
-    metadata?: Record<string, unknown>;
-  }): Promise<SystemLog> {
-    const raw = await requestJsonRaw<unknown>('/v1/admin/monitoring/logs', {
-      method: 'POST',
-      body: logData,
-    });
-
-    const { data } = unwrapEnvelope<RawLog>(raw, 'admin monitoring create log');
-    return mapLog(data);
+    return mapLog(requireData(response.data, 'admin monitoring resolve log'));
   },
 
   async deleteLogs(logIds: string[]): Promise<number> {
-    const raw = await requestJsonRaw<unknown>('/v1/admin/monitoring/logs/delete', {
-      method: 'POST',
-      body: { logIds },
-    });
+    const response = await protoSend(
+      'POST',
+      '/v1/admin/monitoring/logs/delete',
+      DeleteLogsRequestSchema,
+      create(DeleteLogsRequestSchema, { logIds }),
+      AdminMonitoringDeleteLogsResponseSchema,
+    );
 
-    const { data } = unwrapEnvelope<{ deletedCount?: unknown }>(raw, 'admin monitoring delete logs');
-    return parseNumber(data.deletedCount, 0);
+    const data = requireData(response.data, 'admin monitoring delete logs');
+    return toNum(data.deletedCount);
   },
 
   async exportLogs(filters?: Omit<LogFilters, 'page' | 'limit' | 'sortBy' | 'sortOrder'>): Promise<Blob> {
@@ -284,11 +305,11 @@ export const monitoringService = {
   },
 
   async clearAllLogs(): Promise<number> {
-    const raw = await requestJsonRaw<unknown>('/v1/admin/monitoring/logs/clear-all', {
+    const response = await protoFetch(AdminMonitoringDeleteLogsResponseSchema, '/v1/admin/monitoring/logs/clear-all', {
       method: 'POST',
     });
 
-    const { data } = unwrapEnvelope<{ deletedCount?: unknown }>(raw, 'admin monitoring clear logs');
-    return parseNumber(data.deletedCount, 0);
+    const data = requireData(response.data, 'admin monitoring clear logs');
+    return toNum(data.deletedCount);
   },
 };

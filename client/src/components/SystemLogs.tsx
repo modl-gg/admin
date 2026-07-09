@@ -108,7 +108,6 @@ export default function SystemLogs() {
   });
 
   const sources = sourcesData?.sources || [];
-  const categories = sourcesData?.categories || [];
 
 
   // Resolve logs mutation

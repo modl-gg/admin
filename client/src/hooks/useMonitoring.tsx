@@ -4,7 +4,6 @@ import {
   type DashboardMetrics,
   type HealthCheck,
   type LogFilters,
-  type LogLevel,
 } from '@/lib/services/monitoring-service';
 
 export function useDashboardMetrics() {
@@ -47,24 +46,6 @@ export function useResolveLog() {
   return useMutation({
     mutationFn: ({ logId, resolvedBy }: { logId: string; resolvedBy?: string }) =>
       monitoringService.resolveLog(logId, resolvedBy),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['monitoring', 'logs'] });
-      queryClient.invalidateQueries({ queryKey: ['monitoring', 'dashboard'] });
-    },
-  });
-}
-
-export function useCreateLog() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (logData: {
-      level: LogLevel;
-      message: string;
-      source: string;
-      category?: string;
-      metadata?: Record<string, unknown>;
-    }) => monitoringService.createLog(logData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['monitoring', 'logs'] });
       queryClient.invalidateQueries({ queryKey: ['monitoring', 'dashboard'] });

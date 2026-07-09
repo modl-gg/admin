@@ -1,26 +1,36 @@
-import { requestJsonRaw } from '@/lib/api';
+import { create } from '@bufbuild/protobuf';
+import { UpdateServerRequestSchema } from '@modl-gg/proto/modl/v1/admin_pb.ts';
 import {
-  getOptionalString,
-  isRecord,
-  normalizeDateValue,
-  parseNumber,
-  unwrapEnvelope,
-  unwrapEnvelopeOptionalData,
-} from '@/lib/api-contracts/common';
+  AdminServerDetailResponseSchema,
+  AdminServerListResponseSchema,
+  AdminServerMutationResponseSchema,
+  AdminServerStatsResponseSchema,
+  AdminServerUsageBatchRequestSchema,
+  AdminServerUsageBatchResponseSchema,
+  type AdminServerRecord,
+} from '@modl-gg/proto/modl/v1/server_pb.ts';
+import { protoFetch, protoSend, requireData } from '@/lib/proto-fetch';
+import { mapPagination, toNum, tsToIso } from '@/lib/proto-ui';
+import { buildQueryString } from '@/lib/query-string';
+import {
+  normalizeProvisioningStatus,
+  normalizeServerPlan,
+  normalizeSubscriptionStatus,
+  type CustomDomainStatus,
+  type ProvisioningStatus,
+  type ServerPlan,
+  type SubscriptionStatus,
+} from '@/lib/services/server-status';
 
-export type ServerPlan = 'free' | 'premium';
-export type ProvisioningStatus = 'pending' | 'in-progress' | 'completed' | 'failed';
-export type CustomDomainStatus = 'pending' | 'error' | 'active' | 'verifying';
-export type SubscriptionStatus =
-  | 'active'
-  | 'canceled'
-  | 'past_due'
-  | 'inactive'
-  | 'trialing'
-  | 'incomplete'
-  | 'incomplete_expired'
-  | 'unpaid'
-  | 'paused';
+export {
+  normalizeProvisioningStatus,
+  normalizeServerPlan,
+  normalizeSubscriptionStatus,
+  type CustomDomainStatus,
+  type ProvisioningStatus,
+  type ServerPlan,
+  type SubscriptionStatus,
+};
 
 export interface AdminServerListItem {
   id: string;
@@ -43,6 +53,7 @@ export interface AdminServerDetails extends AdminServerListItem {
   customDomainStatus?: CustomDomainStatus;
   customDomainLastChecked?: string;
   customDomainError?: string;
+  provisioningNotes?: string;
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
   subscriptionStatus?: SubscriptionStatus;
@@ -74,92 +85,7 @@ export interface PaginatedServers {
   };
 }
 
-interface RawServer {
-  id?: unknown;
-  _id?: unknown;
-  serverName?: unknown;
-  customDomain?: unknown;
-  adminEmail?: unknown;
-  plan?: unknown;
-  emailVerified?: unknown;
-  provisioningStatus?: unknown;
-  createdAt?: unknown;
-  updatedAt?: unknown;
-  userCount?: unknown;
-  ticketCount?: unknown;
-  lastActivityAt?: unknown;
-  databaseName?: unknown;
-  customDomainOverride?: unknown;
-  customDomainStatus?: unknown;
-  customDomainLastChecked?: unknown;
-  customDomainError?: unknown;
-  stripeCustomerId?: unknown;
-  stripeSubscriptionId?: unknown;
-  subscriptionStatus?: unknown;
-  currentPeriodEnd?: unknown;
-}
-
-interface RawServersPayload {
-  servers?: unknown;
-  pagination?: {
-    page?: unknown;
-    limit?: unknown;
-    total?: unknown;
-    pages?: unknown;
-  };
-}
-
-interface RawStatsPayload {
-  totalPlayers?: unknown;
-  totalTickets?: unknown;
-  totalLogs?: unknown;
-  lastActivity?: unknown;
-  databaseSize?: unknown;
-}
-
-interface RawUsageSummary {
-  userCount?: unknown;
-  ticketCount?: unknown;
-  updatedAt?: unknown;
-  fromCache?: unknown;
-}
-
-interface RawUsagePayload {
-  usage?: unknown;
-}
-
-
-function normalizeServerPlan(value: unknown): ServerPlan {
-  if (typeof value !== 'string') {
-    return 'free';
-  }
-
-  const normalized = value.trim().toLowerCase();
-  return normalized === 'premium' ? 'premium' : 'free';
-}
-
-function normalizeProvisioningStatus(value: unknown): ProvisioningStatus {
-  if (typeof value !== 'string') {
-    return 'pending';
-  }
-
-  const normalized = value.trim().toLowerCase().replace(/_/g, '-');
-  if (normalized === 'in-progress') {
-    return 'in-progress';
-  }
-
-  if (normalized === 'completed') {
-    return 'completed';
-  }
-
-  if (normalized === 'failed') {
-    return 'failed';
-  }
-
-  return 'pending';
-}
-
-function normalizeCustomDomainStatus(value: unknown): CustomDomainStatus | undefined {
+function normalizeCustomDomainStatus(value: string | undefined): CustomDomainStatus | undefined {
   if (typeof value !== 'string') {
     return undefined;
   }
@@ -172,73 +98,42 @@ function normalizeCustomDomainStatus(value: unknown): CustomDomainStatus | undef
   return undefined;
 }
 
-function normalizeSubscriptionStatus(value: unknown): SubscriptionStatus | undefined {
-  if (typeof value !== 'string') {
-    return undefined;
-  }
-
-  const normalized = value.trim().toLowerCase();
-
-  const allowed: SubscriptionStatus[] = [
-    'active',
-    'canceled',
-    'past_due',
-    'inactive',
-    'trialing',
-    'incomplete',
-    'incomplete_expired',
-    'unpaid',
-    'paused',
-  ];
-
-  return allowed.includes(normalized as SubscriptionStatus)
-    ? (normalized as SubscriptionStatus)
-    : undefined;
+function toOptionalCount(value: bigint | undefined): number | undefined {
+  return value !== undefined ? toNum(value) : undefined;
 }
 
-function ensureServerId(value: RawServer): string {
-  if (typeof value.id === 'string') {
-    return value.id;
-  }
-
-  if (typeof value._id === 'string') {
-    return value._id;
-  }
-
-  return '';
-}
-
-function mapServerListItem(raw: RawServer): AdminServerListItem {
+function mapServerListItem(record: AdminServerRecord): AdminServerListItem {
   return {
-    id: ensureServerId(raw),
-    serverName: getOptionalString(raw.serverName) ?? 'Unknown Server',
-    customDomain: getOptionalString(raw.customDomain) ?? 'unknown',
-    adminEmail: getOptionalString(raw.adminEmail) ?? 'unknown@example.com',
-    plan: normalizeServerPlan(raw.plan),
-    emailVerified: raw.emailVerified === true,
-    provisioningStatus: normalizeProvisioningStatus(raw.provisioningStatus),
-    createdAt: normalizeDateValue(raw.createdAt),
-    updatedAt: normalizeDateValue(raw.updatedAt),
-    userCount: typeof raw.userCount === 'number' ? raw.userCount : undefined,
-    ticketCount: typeof raw.ticketCount === 'number' ? raw.ticketCount : undefined,
-    lastActivityAt: normalizeDateValue(raw.lastActivityAt),
+    id: record.id,
+    serverName: record.serverName || 'Unknown Server',
+    customDomain: record.customDomain || 'unknown',
+    adminEmail: record.adminEmail || 'unknown@example.com',
+    plan: normalizeServerPlan(record.plan),
+    emailVerified: record.emailVerified,
+    provisioningStatus: normalizeProvisioningStatus(record.provisioningStatus),
+    createdAt: tsToIso(record.createdAt),
+    updatedAt: tsToIso(record.updatedAt),
+    userCount: toOptionalCount(record.userCount),
+    ticketCount: toOptionalCount(record.ticketCount),
+    lastActivityAt: tsToIso(record.lastActivityAt),
   };
 }
 
-function mapServerDetails(raw: RawServer): AdminServerDetails {
-  const base = mapServerListItem(raw);
+function mapServerDetails(record: AdminServerRecord): AdminServerDetails {
+  const base = mapServerListItem(record);
 
   return {
     ...base,
-    databaseName: getOptionalString(raw.databaseName),
-    customDomainOverride: getOptionalString(raw.customDomainOverride),
-    customDomainStatus: normalizeCustomDomainStatus(raw.customDomainStatus),
-    customDomainLastChecked: normalizeDateValue(raw.customDomainLastChecked),
-    customDomainError: getOptionalString(raw.customDomainError),
-    stripeCustomerId: getOptionalString(raw.stripeCustomerId),
-    stripeSubscriptionId: getOptionalString(raw.stripeSubscriptionId),
-    subscriptionStatus: normalizeSubscriptionStatus(raw.subscriptionStatus),
-    currentPeriodEnd: normalizeDateValue(raw.currentPeriodEnd),
+    databaseName: record.databaseName || undefined,
+    customDomainOverride: record.customDomainOverride || undefined,
+    customDomainStatus: normalizeCustomDomainStatus(record.customDomainStatus),
+    customDomainLastChecked: tsToIso(record.customDomainLastChecked),
+    customDomainError: record.customDomainError || undefined,
+    provisioningNotes: record.provisioningNotes || undefined,
+    stripeCustomerId: record.stripeCustomerId || undefined,
+    stripeSubscriptionId: record.stripeSubscriptionId || undefined,
+    subscriptionStatus: normalizeSubscriptionStatus(record.subscriptionStatus),
+    currentPeriodEnd: tsToIso(record.currentPeriodEnd),
   };
 }
 
@@ -252,15 +147,6 @@ function toBackendPlan(value: ServerPlan): string {
 
 function toBackendSubscriptionStatus(value: SubscriptionStatus): string {
   return value.toUpperCase();
-}
-
-function mapUsageSummary(raw: RawUsageSummary): ServerUsageSummary {
-  return {
-    userCount: parseNumber(raw.userCount, 0),
-    ticketCount: parseNumber(raw.ticketCount, 0),
-    updatedAt: normalizeDateValue(raw.updatedAt),
-    fromCache: raw.fromCache === true,
-  };
 }
 
 export interface GetServersParams {
@@ -283,21 +169,6 @@ export interface UpdateServerInput {
   lastActivityAt?: string;
 }
 
-function buildQueryString(params?: Record<string, string | number | boolean | undefined>): string {
-  const queryParams = new URLSearchParams();
-
-  if (params) {
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        queryParams.append(key, String(value));
-      }
-    });
-  }
-
-  const query = queryParams.toString();
-  return query ? `?${query}` : '';
-}
-
 export const serversService = {
   async getServers(params?: GetServersParams): Promise<PaginatedServers> {
     const query = buildQueryString({
@@ -310,39 +181,30 @@ export const serversService = {
       order: params?.order,
     });
 
-    const raw = await requestJsonRaw<unknown>(`/v1/admin/servers${query}`);
-    const { data } = unwrapEnvelope<RawServersPayload>(raw, 'admin servers list');
-
-    const serversRaw = Array.isArray(data.servers) ? (data.servers as RawServer[]) : [];
-    const paginationRaw = data.pagination ?? {};
+    const response = await protoFetch(AdminServerListResponseSchema, `/v1/admin/servers${query}`);
+    const data = requireData(response.data, 'admin servers list');
 
     return {
-      servers: serversRaw.map(mapServerListItem),
-      pagination: {
-        page: parseNumber(paginationRaw.page, 1),
-        limit: parseNumber(paginationRaw.limit, 20),
-        total: parseNumber(paginationRaw.total, 0),
-        pages: parseNumber(paginationRaw.pages, 0),
-      },
+      servers: data.servers.map(mapServerListItem),
+      pagination: mapPagination(data.pagination, 20),
     };
   },
 
   async getServer(id: string): Promise<AdminServerDetails> {
-    const raw = await requestJsonRaw<unknown>(`/v1/admin/servers/${id}`);
-    const { data } = unwrapEnvelope<RawServer>(raw, 'admin server detail');
-    return mapServerDetails(data);
+    const response = await protoFetch(AdminServerDetailResponseSchema, `/v1/admin/servers/${id}`);
+    return mapServerDetails(requireData(response.data, 'admin server detail'));
   },
 
   async getServerStats(id: string): Promise<ServerStats> {
-    const raw = await requestJsonRaw<unknown>(`/v1/admin/servers/${id}/stats`);
-    const { data } = unwrapEnvelope<RawStatsPayload>(raw, 'admin server stats');
+    const response = await protoFetch(AdminServerStatsResponseSchema, `/v1/admin/servers/${id}/stats`);
+    const data = requireData(response.data, 'admin server stats');
 
     return {
-      totalPlayers: parseNumber(data.totalPlayers),
-      totalTickets: parseNumber(data.totalTickets),
-      totalLogs: parseNumber(data.totalLogs),
-      lastActivity: normalizeDateValue(data.lastActivity),
-      databaseSize: parseNumber(data.databaseSize),
+      totalPlayers: toNum(data.totalPlayers),
+      totalTickets: toNum(data.totalTickets),
+      totalLogs: toNum(data.totalLogs),
+      lastActivity: tsToIso(data.lastActivity),
+      databaseSize: toNum(data.databaseSize),
     };
   },
 
@@ -357,70 +219,75 @@ export const serversService = {
       return {};
     }
 
-    const raw = await requestJsonRaw<unknown>('/v1/admin/servers/usage/batch', {
-      method: 'POST',
-      body: {
+    const response = await protoSend(
+      'POST',
+      '/v1/admin/servers/usage/batch',
+      AdminServerUsageBatchRequestSchema,
+      create(AdminServerUsageBatchRequestSchema, {
         serverIds: dedupedIds,
         forceRefresh,
-      },
-    });
+      }),
+      AdminServerUsageBatchResponseSchema,
+    );
 
-    const { data } = unwrapEnvelope<RawUsagePayload>(raw, 'admin server usage batch');
-    const usageRaw = isRecord(data.usage) ? data.usage : {};
+    const data = requireData(response.data, 'admin server usage batch');
 
     const usageById: Record<string, ServerUsageSummary> = {};
-    Object.entries(usageRaw).forEach(([serverId, entry]) => {
-      if (isRecord(entry)) {
-        usageById[serverId] = mapUsageSummary(entry);
-      }
+    Object.entries(data.usage).forEach(([serverId, summary]) => {
+      usageById[serverId] = {
+        userCount: toNum(summary.userCount),
+        ticketCount: toNum(summary.ticketCount),
+        updatedAt: tsToIso(summary.updatedAt),
+        fromCache: summary.fromCache,
+      };
     });
 
     return usageById;
   },
 
   async updateServer(id: string, input: UpdateServerInput): Promise<AdminServerDetails> {
-    const payload: Record<string, unknown> = {};
-
-    if (input.adminEmail !== undefined) payload.adminEmail = input.adminEmail;
-    if (input.emailVerified !== undefined) payload.emailVerified = input.emailVerified;
-    if (input.provisioningStatus !== undefined) payload.provisioningStatus = toBackendProvisioningStatus(input.provisioningStatus);
-    if (input.provisioningNotes !== undefined) payload.provisioningNotes = input.provisioningNotes;
-    if (input.plan !== undefined) payload.plan = toBackendPlan(input.plan);
-    if (input.subscriptionStatus !== undefined) payload.subscriptionStatus = toBackendSubscriptionStatus(input.subscriptionStatus);
-    if (input.lastActivityAt !== undefined) payload.lastActivityAt = input.lastActivityAt;
-
-    const raw = await requestJsonRaw<unknown>(`/v1/admin/servers/${id}`, {
-      method: 'PUT',
-      body: payload,
+    const request = create(UpdateServerRequestSchema, {
+      adminEmail: input.adminEmail,
+      emailVerified: input.emailVerified,
+      provisioningStatus:
+        input.provisioningStatus !== undefined ? toBackendProvisioningStatus(input.provisioningStatus) : undefined,
+      provisioningNotes: input.provisioningNotes,
+      plan: input.plan !== undefined ? toBackendPlan(input.plan) : undefined,
+      subscriptionStatus:
+        input.subscriptionStatus !== undefined ? toBackendSubscriptionStatus(input.subscriptionStatus) : undefined,
+      lastActivityAt: input.lastActivityAt,
     });
 
-    const { data } = unwrapEnvelope<RawServer>(raw, 'admin server update');
-    return mapServerDetails(data);
+    const response = await protoSend(
+      'PUT',
+      `/v1/admin/servers/${id}`,
+      UpdateServerRequestSchema,
+      request,
+      AdminServerMutationResponseSchema,
+    );
+
+    return mapServerDetails(requireData(response.data, 'admin server update'));
   },
 
   async deleteServer(id: string): Promise<void> {
-    const raw = await requestJsonRaw<unknown>(`/v1/admin/servers/${id}`, {
+    await protoFetch(AdminServerMutationResponseSchema, `/v1/admin/servers/${id}`, {
       method: 'DELETE',
     });
-
-    unwrapEnvelopeOptionalData<unknown>(raw, 'admin server delete');
   },
 
   async resetDatabase(id: string): Promise<string> {
-    const raw = await requestJsonRaw<unknown>(`/v1/admin/servers/${id}/reset-database`, {
+    const response = await protoFetch(AdminServerMutationResponseSchema, `/v1/admin/servers/${id}/reset-database`, {
       method: 'POST',
     });
 
-    const { message } = unwrapEnvelopeOptionalData<unknown>(raw, 'admin server reset database');
-    return message ?? 'Server reset initiated';
+    return response.message ?? 'Server reset initiated';
   },
 
   async exportData(id: string): Promise<string> {
-    const raw = await requestJsonRaw<unknown>(`/v1/admin/servers/${id}/export-data`, {
+    const response = await protoFetch(AdminServerMutationResponseSchema, `/v1/admin/servers/${id}/export-data`, {
       method: 'POST',
     });
 
-    const { message } = unwrapEnvelopeOptionalData<unknown>(raw, 'admin server export data');
-    return message ?? 'Server export initiated';
+    return response.message ?? 'Server export initiated';
   },
 };
