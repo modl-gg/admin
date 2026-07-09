@@ -31,7 +31,6 @@ import {
   Ban,
   HardDrive,
   Sparkles,
-  Cloud,
   Users,
   Globe,
   Upload,
@@ -44,10 +43,6 @@ import {
   type BetaTesterRecord,
 } from '@/lib/services/beta-testers-service';
 import { formatBytes, formatDate, formatDateRelative } from '@/lib/utils';
-
-function formatGigabytes(value: number): string {
-  return `${value.toLocaleString(undefined, { maximumFractionDigits: 2 })} GB`;
-}
 
 function toPercent(used: number, limit: number): number {
   if (limit <= 0) {
@@ -406,13 +401,6 @@ export default function BetaTesterDetailPage() {
               usedLabel={record.usage.aiRequestsUsed.toLocaleString()}
               limitLabel={record.limits.aiRequestLimit.toLocaleString()}
               percent={toPercent(record.usage.aiRequestsUsed, record.limits.aiRequestLimit)}
-            />
-            <UsageMeter
-              icon={<Cloud className="h-4 w-4 text-muted-foreground" />}
-              label="CDN Egress"
-              usedLabel={formatGigabytes(record.usage.cdnUsageGb)}
-              limitLabel={formatGigabytes(record.limits.cdnLimitGb)}
-              percent={toPercent(record.usage.cdnUsageGb, record.limits.cdnLimitGb)}
             />
           </div>
 

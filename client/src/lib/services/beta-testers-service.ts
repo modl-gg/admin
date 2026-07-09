@@ -30,7 +30,6 @@ export interface BetaTesterUsage {
   storageUsedBytes: number;
   userCount: number;
   ticketCount: number;
-  cdnUsageGb: number;
   aiRequestsUsed: number;
 }
 
@@ -38,7 +37,6 @@ export interface BetaTesterLimits {
   maxStaffSeats: number;
   maxStorageBytes: number;
   aiRequestLimit: number;
-  cdnLimitGb: number;
   customDomainAllowed: boolean;
   maxUploadBytes: number;
 }
@@ -111,7 +109,6 @@ function mapUsage(usage: ProtoBetaTesterUsage | undefined): BetaTesterUsage {
     storageUsedBytes: usage ? toNum(usage.storageUsedBytes) : 0,
     userCount: usage ? toNum(usage.userCount) : 0,
     ticketCount: usage ? toNum(usage.ticketCount) : 0,
-    cdnUsageGb: usage?.cdnUsageGb ?? 0,
     aiRequestsUsed: usage ? toNum(usage.aiRequestsUsed) : 0,
   };
 }
@@ -121,7 +118,6 @@ function mapLimits(limits: ProtoBetaTesterLimits | undefined): BetaTesterLimits 
     maxStaffSeats: limits ? toNum(limits.maxStaffSeats) : 0,
     maxStorageBytes: limits ? toNum(limits.maxStorageBytes) : 0,
     aiRequestLimit: limits ? toNum(limits.aiRequestLimit) : 0,
-    cdnLimitGb: limits?.cdnLimitGb ?? 0,
     customDomainAllowed: limits?.customDomainAllowed ?? false,
     maxUploadBytes: limits ? toNum(limits.maxUploadBytes) : 0,
   };
